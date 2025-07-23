@@ -352,9 +352,10 @@ function initGame() {
         // 初期ステージの表示設定
         initializeStageDisplay();
         
-        // ステージ6の初期化
-        currentMorseWord = generateNewMorseWord();
-        console.log('📡 初期モールス信号の単語:', currentMorseWord);
+        // モールス信号ステージの初期化
+        stageStates.currentWord = generateNewMorseWord();
+        currentMorseWord = stageStates.currentWord; // 互換性のため
+        console.log('📡 初期モールス信号の単語:', stageStates.currentWord);
         
         // バイブレーション機能チェック
         const vibrationSupported = checkVibrationSupport();
@@ -1077,17 +1078,23 @@ function createLightStageHTML(stageNum) {
                     <div class="light-step" id="light-step-1-${stageNum}">
                         <span class="step-icon">☀️</span>
                         <span class="step-text">明るい場所 (1/3)</span>
-                        <div class="step-progress" id="light-progress-1-${stageNum}"></div>
+                        <div class="step-progress" id="light-progress-1-${stageNum}">
+                            <div class="progress-fill"></div>
+                        </div>
                     </div>
                     <div class="light-step" id="light-step-2-${stageNum}">
                         <span class="step-icon">🌙</span>
                         <span class="step-text">暗い場所 (2/3)</span>
-                        <div class="step-progress" id="light-progress-2-${stageNum}"></div>
+                        <div class="step-progress" id="light-progress-2-${stageNum}">
+                            <div class="progress-fill"></div>
+                        </div>
                     </div>
                     <div class="light-step" id="light-step-3-${stageNum}">
                         <span class="step-icon">☀️</span>
                         <span class="step-text">明るい場所 (3/3)</span>
-                        <div class="step-progress" id="light-progress-3-${stageNum}"></div>
+                        <div class="step-progress" id="light-progress-3-${stageNum}">
+                            <div class="progress-fill"></div>
+                        </div>
                     </div>
                 </div>
                 
@@ -1151,41 +1158,83 @@ function initializeAllStages() {
 
 // ステージのイベントリスナー設定
 function setupStageEventListeners() {
-    // ステージ6: モールス信号のイベントリスナー
-    const playMorseBtn = document.getElementById('play-morse-btn-6');
-    const submitMorseBtn = document.getElementById('submit-morse-btn-6');
+    console.log('🔗 ステージイベントリスナーを設定中...');
+    
+    // 各ステージのイベントリスナーを設定
+    for (let i = 1; i <= 7; i++) {
+        setupStageSpecificListeners(i);
+    }
+    
+    console.log('✅ 全ステージのイベントリスナー設定完了');
+}
+
+// ステージ固有のイベントリスナー設定
+function setupStageSpecificListeners(stageNum) {
+    const stageDef = STAGE_DEFINITIONS[stageNum];
+    if (!stageDef) return;
+    
+    switch (stageDef.type) {
+        case 'morse':
+            setupMorseListeners(stageNum);
+            break;
+        case 'light':
+            setupLightListeners(stageNum);
+            break;
+    }
+}
+
+// モールス信号のイベントリスナー設定
+function setupMorseListeners(stageNum) {
+    const playMorseBtn = document.getElementById(`play-morse-btn-${stageNum}`);
+    const submitMorseBtn = document.getElementById(`submit-morse-btn-${stageNum}`);
     
     if (playMorseBtn) {
         playMorseBtn.addEventListener('click', () => {
-            if (stageStates.currentWord) {
-                playMorseVibration(stageStates.currentWord);
-            }
+            console.log(`🔘 ステージ${stageNum}: モールス信号再生ボタンクリック`);
+            const word = stageStates.currentWord || generateNewMorseWord();
+            stageStates.currentWord = word;
+            playMorseVibration(word, stageNum);
         });
+        console.log(`✅ ステージ${stageNum}: モールス再生ボタンのイベントリスナー設定`);
     }
     
     if (submitMorseBtn) {
         submitMorseBtn.addEventListener('click', () => {
-            checkMorseInput();
+            console.log(`🔘 ステージ${stageNum}: モールス信号送信ボタンクリック`);
+            checkMorseInput(stageNum);
         });
+        console.log(`✅ ステージ${stageNum}: モールス送信ボタンのイベントリスナー設定`);
     }
     
-    // ステージ7: 光センサーのイベントリスナー
-    const startCameraBtn = document.getElementById('start-camera-btn-7');
-    const stopCameraBtn = document.getElementById('stop-camera-btn-7');
+    // モールス入力フィールドのリアルタイムチェック
+    const morseInput = document.getElementById(`morse-input-${stageNum}`);
+    if (morseInput) {
+        morseInput.addEventListener('input', () => {
+            updateMorseHint(stageNum);
+        });
+    }
+}
+
+// 光センサーのイベントリスナー設定
+function setupLightListeners(stageNum) {
+    const startCameraBtn = document.getElementById(`start-camera-btn-${stageNum}`);
+    const stopCameraBtn = document.getElementById(`stop-camera-btn-${stageNum}`);
     
     if (startCameraBtn) {
         startCameraBtn.addEventListener('click', () => {
+            console.log(`🔘 ステージ${stageNum}: カメラ開始ボタンクリック`);
             startLightSensor();
         });
+        console.log(`✅ ステージ${stageNum}: カメラ開始ボタンのイベントリスナー設定`);
     }
     
     if (stopCameraBtn) {
         stopCameraBtn.addEventListener('click', () => {
+            console.log(`🔘 ステージ${stageNum}: カメラ停止ボタンクリック`);
             stopLightSensor();
         });
+        console.log(`✅ ステージ${stageNum}: カメラ停止ボタンのイベントリスナー設定`);
     }
-    
-    console.log('🔗 ステージイベントリスナーを設定しました');
 }
 
 // ==================== 新ロジック処理関数群 ====================
@@ -1519,7 +1568,7 @@ function updateVisualFeedback(type, letter = '') {
 }
 
 // 改良されたモールス信号再生機能
-async function playMorseVibration(word) {
+async function playMorseVibration(word, stageNum = 6) {
     console.log('🎵 モールス信号再生開始:', word);
     
     if (!checkVibrationSupport()) {
@@ -1663,17 +1712,21 @@ function generateNewMorseWord() {
 }
 
 // プレイヤーの入力をチェック
-function checkMorseInput() {
-    const inputElement = document.getElementById('morse-input');
-    const hintElement = document.getElementById('morse-hint');
+function checkMorseInput(stageNum = 6) {
+    const inputElement = document.getElementById(`morse-input-${stageNum}`);
+    const hintElement = document.getElementById(`morse-hint-${stageNum}`);
     
-    if (!inputElement) return;
+    if (!inputElement) {
+        console.error(`❌ morse-input-${stageNum} が見つかりません`);
+        return;
+    }
     
     const input = inputElement.value.toUpperCase().trim();
+    const targetWord = stageStates.currentWord || currentMorseWord;
     
-    console.log('📝 入力チェック:', input, 'vs', currentMorseWord);
+    console.log('📝 入力チェック:', input, 'vs', targetWord);
     
-    if (input === currentMorseWord) {
+    if (input === targetWord) {
         // 正解
         inputElement.style.borderColor = '#ffffff';
         inputElement.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
@@ -1688,16 +1741,16 @@ function checkMorseInput() {
         }
         
         setTimeout(() => {
-            stageComplete('ステージ6クリア！\nモールス信号を解読できました！\n🎊 おめでとうございます！');
+            stageComplete(`ステージ${stageNum}クリア！\nモールス信号を解読できました！\n🎊 おめでとうございます！`);
         }, 1500);
     } else if (input.length > 0) {
         // 入力中の判定
-        if (currentMorseWord.startsWith(input)) {
+        if (targetWord.startsWith(input)) {
             // 部分一致
             inputElement.style.borderColor = '#999999';
             inputElement.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
             if (hintElement) {
-                hintElement.textContent = `👍 良い感じです！続けてください... (${input.length}/${currentMorseWord.length}文字)`;
+                hintElement.textContent = `👍 良い感じです！続けてください... (${input.length}/${targetWord.length}文字)`;
                 hintElement.style.color = '#999999';
             }
         } else {
@@ -1705,7 +1758,7 @@ function checkMorseInput() {
             inputElement.style.borderColor = '#ff6b6b';
             inputElement.style.backgroundColor = 'rgba(255, 107, 107, 0.1)';
             if (hintElement) {
-                hintElement.textContent = `❌ 違います。目標: ${currentMorseWord.length}文字の英単語`;
+                hintElement.textContent = `❌ 違います。目標: ${targetWord.length}文字の英単語`;
                 hintElement.style.color = '#ff6b6b';
             }
         }
@@ -1714,9 +1767,39 @@ function checkMorseInput() {
         inputElement.style.borderColor = '#333333';
         inputElement.style.backgroundColor = 'transparent';
         if (hintElement) {
-            hintElement.textContent = `💡 ヒント: ${currentMorseWord.length}文字の英単語です`;
+            hintElement.textContent = `💡 ヒント: ${targetWord.length}文字の英単語です`;
             hintElement.style.color = '#666666';
         }
+    }
+}
+
+// モールス入力のリアルタイムヒント更新
+function updateMorseHint(stageNum) {
+    const inputElement = document.getElementById(`morse-input-${stageNum}`);
+    const hintElement = document.getElementById(`morse-hint-${stageNum}`);
+    
+    if (!inputElement || !hintElement) return;
+    
+    const input = inputElement.value.toUpperCase().trim();
+    const targetWord = stageStates.currentWord || currentMorseWord;
+    
+    if (input.length === 0) {
+        hintElement.textContent = `💡 ヒント: ${targetWord.length}文字の英単語です`;
+        hintElement.style.color = '#666666';
+        inputElement.style.borderColor = '#333333';
+        return;
+    }
+    
+    if (targetWord.startsWith(input)) {
+        // 部分一致
+        inputElement.style.borderColor = '#999999';
+        hintElement.textContent = `👍 良い感じです！ (${input.length}/${targetWord.length}文字)`;
+        hintElement.style.color = '#999999';
+    } else {
+        // 不一致
+        inputElement.style.borderColor = '#ff6b6b';
+        hintElement.textContent = `❌ 違います。目標: ${targetWord.length}文字の英単語`;
+        hintElement.style.color = '#ff6b6b';
     }
 }
 
@@ -1834,6 +1917,28 @@ function updateStageDisplay() {
         console.log(`📊 ステージ表示を更新: ステージ ${currentStage}`);
     } else {
         console.error('❌ current-stage要素が見つかりません');
+    }
+    
+    // ステージ選択ボタンの状態も更新
+    updateStageButtons();
+}
+
+// ステージ選択ボタンの状態更新
+function updateStageButtons() {
+    for (let i = 0; i <= 7; i++) {
+        const btn = document.getElementById(`stage-btn-${i}`);
+        if (btn) {
+            // 全てのクラスをリセット
+            btn.classList.remove('active', 'completed');
+            
+            if (i === currentStage) {
+                // 現在のステージをアクティブに
+                btn.classList.add('active');
+            } else if (i < currentStage) {
+                // クリア済みステージを完了済みに
+                btn.classList.add('completed');
+            }
+        }
     }
 }
 
@@ -2297,7 +2402,11 @@ function stopLightSensor() {
     // プログレスバーをリセット
     for (let i = 1; i <= 3; i++) {
         const progressEl = document.getElementById(`light-progress-${i}-${currentStage}`);
-        if (progressEl) progressEl.style.width = '0%';
+        if (progressEl) {
+            // プログレス内部の進捗バーをリセット
+            const innerBar = progressEl.querySelector('.progress-fill');
+            if (innerBar) innerBar.style.width = '0%';
+        }
     }
     
     console.log('✅ 光センサーが停止されました');
@@ -2397,7 +2506,11 @@ function processLightStep(brightness) {
         const progress = Math.min(100, (timeElapsed / stepDuration) * 100);
         
         if (progressEl) {
-            progressEl.style.width = `${progress}%`;
+            // プログレス内部の進捗バーを更新
+            const innerBar = progressEl.querySelector('.progress-fill');
+            if (innerBar) {
+                innerBar.style.width = `${progress}%`;
+            }
         }
         
         if (statusEl) {
@@ -2428,7 +2541,11 @@ function processLightStep(brightness) {
         lightStepStartTime = currentTime; // タイマーリセット
         
         if (progressEl) {
-            progressEl.style.width = '0%';
+            // プログレス内部の進捗バーをリセット
+            const innerBar = progressEl.querySelector('.progress-fill');
+            if (innerBar) {
+                innerBar.style.width = '0%';
+            }
         }
         
         if (statusEl) {
@@ -2454,3 +2571,4 @@ function lightSensorComplete() {
         stageComplete('ステージ7クリア！\n光センサーチャレンジを完了しました！');
     }, 2000);
 }
+
