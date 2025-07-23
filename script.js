@@ -9,6 +9,12 @@ let holdStartTime = 0;
 let holdInterval = null;
 let permissionGranted = false;
 
+// デバッグモード関連
+let debugMode = localStorage.getItem('nazoGameDebugMode') === 'true';
+let debugKeySequence = '';
+const DEBUG_KEY_CODE = 'debug';
+const TOTAL_STAGES = 7; // ステージ0〜6
+
 // 滑らかなアニメーション用
 let smoothCompassHeading = 0;
 let smoothTiltX = 0;
@@ -1179,6 +1185,11 @@ function goToNextStage() {
     
     // ステージ状態リセット
     resetStageState();
+    
+    // デバッグパネル更新
+    if (debugMode) {
+        updateDebugPanel();
+    }
 }
 
 // ステージ表示更新
@@ -1308,4 +1319,214 @@ window.addEventListener('load', function() {
     setTimeout(() => {
         if (debugInfo) debugInfo.style.display = 'none';
     }, 10000);
+});
+
+// ==================== デバッグモード機能 ====================
+
+// デバッグモードの切り替え
+function toggleDebugMode() {
+    debugMode = !debugMode;
+    localStorage.setItem('nazoGameDebugMode', debugMode.toString());
+    console.log('🐛 デバッグモード:', debugMode ? 'ON' : 'OFF');
+    
+    if (debugMode) {
+        showDebugPanel();
+        console.log('🎮 デバッグコマンド:');
+        console.log('  - goToStage(n): ステージnに移動');
+        console.log('  - toggleDebugMode(): デバッグモード切り替え');
+        console.log('  - resetGame(): ゲームリセット');
+    } else {
+        hideDebugPanel();
+    }
+}
+
+// 特定のステージに移動
+function goToStage(stageNumber) {
+    if (stageNumber < 0 || stageNumber >= TOTAL_STAGES) {
+        console.error('❌ 無効なステージ番号:', stageNumber);
+        return;
+    }
+    
+    console.log(`🎯 ステージ${stageNumber}に移動`);
+    
+    // 現在のステージを非表示
+    const currentStageEl = document.getElementById(`stage-${currentStage}`);
+    if (currentStageEl) {
+        currentStageEl.classList.remove('active');
+    }
+    
+    // 新しいステージに移動
+    currentStage = stageNumber;
+    
+    // 新しいステージを表示
+    const newStageEl = document.getElementById(`stage-${currentStage}`);
+    if (newStageEl) {
+        newStageEl.classList.add('active');
+    }
+    
+    // ステージ情報更新
+    updateStageDisplay();
+    
+    // ステージ状態リセット
+    resetStageState();
+    
+    // デバッグパネルの現在ステージ表示を更新
+    if (debugMode) {
+        updateDebugPanel();
+    }
+}
+
+// デバッグパネルの表示
+function showDebugPanel() {
+    // 既存のパネルを削除
+    hideDebugPanel();
+    
+    const debugPanel = document.createElement('div');
+    debugPanel.id = 'debug-panel';
+    debugPanel.innerHTML = `
+        <div class="debug-header">
+            🐛 デバッグパネル
+            <button id="debug-close" style="float: right; background: none; border: none; color: white; cursor: pointer;">✕</button>
+        </div>
+        <div class="debug-content">
+            <div class="debug-stage-info">
+                現在: ステージ <span id="debug-current-stage">${currentStage}</span>
+            </div>
+            <div class="debug-stage-buttons">
+                ${Array.from({length: TOTAL_STAGES}, (_, i) => 
+                    `<button class="debug-stage-btn" onclick="goToStage(${i})" ${i === currentStage ? 'disabled' : ''}>
+                        ステージ${i}
+                    </button>`
+                ).join('')}
+            </div>
+            <div class="debug-actions">
+                <button onclick="resetGame()">🔄 リセット</button>
+                <button onclick="stageComplete('デバッグクリア')">✅ 強制クリア</button>
+            </div>
+            <div class="debug-info">
+                <small>
+                    キーボード: D+E+B+U+G でも切り替え可能<br>
+                    コンソール: goToStage(n), toggleDebugMode()
+                </small>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(debugPanel);
+    
+    // 閉じるボタンのイベント
+    document.getElementById('debug-close').addEventListener('click', () => {
+        toggleDebugMode();
+    });
+}
+
+// デバッグパネルの非表示
+function hideDebugPanel() {
+    const panel = document.getElementById('debug-panel');
+    if (panel) {
+        panel.remove();
+    }
+}
+
+// デバッグパネルの更新
+function updateDebugPanel() {
+    const currentStageSpan = document.getElementById('debug-current-stage');
+    if (currentStageSpan) {
+        currentStageSpan.textContent = currentStage;
+    }
+    
+    // ボタンの状態更新
+    const buttons = document.querySelectorAll('.debug-stage-btn');
+    buttons.forEach((btn, index) => {
+        btn.disabled = (index === currentStage);
+    });
+}
+
+// ゲームリセット
+function resetGame() {
+    console.log('🔄 ゲームをリセット');
+    
+    // 現在のステージを非表示
+    const currentStageEl = document.getElementById(`stage-${currentStage}`);
+    if (currentStageEl) {
+        currentStageEl.classList.remove('active');
+    }
+    
+    // ステージ0に移動
+    currentStage = 0;
+    
+    // ステージ0を表示
+    const stage0El = document.getElementById(`stage-${currentStage}`);
+    if (stage0El) {
+        stage0El.classList.add('active');
+    }
+    
+    // ステージ情報更新
+    updateStageDisplay();
+    
+    // ステージ状態リセット
+    resetStageState();
+    
+    // デバッグパネル更新
+    if (debugMode) {
+        updateDebugPanel();
+    }
+}
+
+// キーボードショートカット処理
+document.addEventListener('keydown', (event) => {
+    // デバッグキーシーケンス: D-E-B-U-G
+    const key = event.key.toLowerCase();
+    debugKeySequence += key;
+    
+    // シーケンスが長すぎる場合はリセット
+    if (debugKeySequence.length > DEBUG_KEY_CODE.length) {
+        debugKeySequence = key;
+    }
+    
+    // デバッグコードが入力された場合
+    if (debugKeySequence === DEBUG_KEY_CODE) {
+        toggleDebugMode();
+        debugKeySequence = '';
+    }
+    
+    // 1秒後にシーケンスをリセット
+    setTimeout(() => {
+        debugKeySequence = '';
+    }, 1000);
+    
+    // デバッグモード時のホットキー
+    if (debugMode) {
+        // Ctrl+数字でステージ移動
+        if (event.ctrlKey && event.key >= '0' && event.key <= '6') {
+            event.preventDefault();
+            const stageNum = parseInt(event.key);
+            goToStage(stageNum);
+        }
+        
+        // Escapeでデバッグモード終了
+        if (event.key === 'Escape') {
+            toggleDebugMode();
+        }
+    }
+});
+
+// ページ読み込み時にデバッグモードを復元
+document.addEventListener('DOMContentLoaded', () => {
+    if (debugMode) {
+        console.log('🐛 デバッグモードが有効です');
+        setTimeout(() => {
+            showDebugPanel();
+        }, 1000);
+    }
+    
+    // グローバル関数として公開（コンソールから使用可能）
+    window.goToStage = goToStage;
+    window.toggleDebugMode = toggleDebugMode;
+    window.resetGame = resetGame;
+    
+    console.log('🎮 ゲーム制御関数が利用可能です:');
+    console.log('  - goToStage(n): ステージnに移動');
+    console.log('  - toggleDebugMode(): デバッグモード切り替え（またはD+E+B+U+Gキー）');
+    console.log('  - resetGame(): ゲームリセット');
 }); 
