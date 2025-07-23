@@ -13,7 +13,7 @@ let permissionGranted = false;
 let debugMode = localStorage.getItem('nazoGameDebugMode') === 'true';
 let debugKeySequence = '';
 const DEBUG_KEY_CODE = 'debug';
-const TOTAL_STAGES = 7; // ステージ0〜6
+const TOTAL_STAGES = 8; // ステージ0（チュートリアル）+ ステージ1〜7
 
 // 滑らかなアニメーション用
 let smoothCompassHeading = 0;
@@ -53,6 +53,97 @@ const morsePatterns = {
 
 // ステージ6用の単語リスト（短くて分かりやすい単語）
 const morseWords = ['SOS', 'HI', 'OK', 'GO', 'YES', 'NO', 'UP'];
+
+// ==================== 新ステージシステム ====================
+
+// ステージ定義オブジェクト
+const STAGE_DEFINITIONS = {
+    1: {
+        title: 'ステージ 1',
+        description: 'コンパス 45度チャレンジ',
+        subtitle: 'スマートフォンを回転させて、コンパスの値を45°にしてください。',
+        details: '45°を3秒間維持すればクリアです！',
+        type: 'compass',
+        target: 45,
+        tolerance: 5,
+        holdTime: 3000,
+        createHTML: () => createCompassStageHTML(1, 45),
+        logic: (stage) => handleCompassLogic(stage)
+    },
+    2: {
+        title: 'ステージ 2',
+        description: '方角ナビゲーション',
+        subtitle: 'スマートフォンを北西の方角に向けてください。',
+        details: '北西の方角は315°です。',
+        type: 'direction',
+        target: 315, // 北西
+        tolerance: 10,
+        createHTML: () => createDirectionStageHTML(2, 315, '北西', 'NW'),
+        logic: (stage) => handleDirectionLogic(stage)
+    },
+    3: {
+        title: 'ステージ 3',
+        description: '水平チャレンジ',
+        subtitle: 'スマートフォンを水平に保ってください。',
+        details: '3秒間水平を維持すればクリアです！',
+        type: 'level',
+        tolerance: 5,
+        holdTime: 3000,
+        createHTML: () => createLevelStageHTML(3),
+        logic: (stage) => handleLevelLogic(stage)
+    },
+    4: {
+        title: 'ステージ 4',
+        description: 'シェイクチャレンジ',
+        subtitle: 'スマートフォンを振ってください。',
+        details: '5回のシェイクを検出すればクリアです！',
+        type: 'shake',
+        requiredShakes: 5,
+        createHTML: () => createShakeStageHTML(4, 5),
+        logic: (stage) => handleShakeLogic(stage)
+    },
+    5: {
+        title: 'ステージ 5',
+        description: '複合チャレンジ',
+        subtitle: '3つの条件を同時に満たしてください',
+        details: 'シェイク3回 + 水平維持 + 北東を向く',
+        type: 'compound',
+        requiredShakes: 3,
+        targetDirection: 45, // 北東
+        levelTolerance: 5,
+        directionTolerance: 10,
+        createHTML: () => createCompoundStageHTML(5),
+        logic: (stage) => handleCompoundLogic(stage)
+    },
+    6: {
+        title: 'ステージ 6',
+        description: 'モールス信号',
+        subtitle: 'バイブレーションで再生されるモールス信号を解読してください',
+        details: '正しい英単語を入力してください',
+        type: 'morse',
+        createHTML: () => createMorseStageHTML(6),
+        logic: (stage) => handleMorseLogic(stage)
+    },
+    7: {
+        title: 'ステージ 7',
+        description: '光センサーチャレンジ',
+        subtitle: 'デバイスのカメラで明るさを検出します',
+        details: '明るい場所と暗い場所を交互に移動してください',
+        type: 'light',
+        createHTML: () => createLightStageHTML(7),
+        logic: (stage) => handleLightLogic(stage)
+    }
+};
+
+// 現在のステージ状態
+let stageStates = {
+    currentCompleteFlag: false,
+    shakeCount: 0,
+    holdStartTime: 0,
+    isHolding: false,
+    currentWord: '',
+    lightLevels: []
+};
 
 // バイブレーション設定
 const VIBRATION_SHORT = 150;  // 短点（ドット）
@@ -252,6 +343,11 @@ function initGame() {
         
         // ステージ表示を更新
         updateStageDisplay();
+        
+        // 新ステージシステム初期化
+        if (!initializeAllStages()) {
+            throw new Error('ステージシステムの初期化に失敗しました');
+        }
         
         // 初期ステージの表示設定
         initializeStageDisplay();
@@ -557,37 +653,69 @@ function updateSensorDisplaySmooth() {
     if (tiltYEl) tiltYEl.textContent = `${Math.round(smoothTiltY)}°`;
 }
 
-// 針の位置更新
+// 針の位置更新（新システム対応）
 function updateNeedlePositions() {
-    // ステージ1のコンパス針
-    const compassNeedleEl = document.getElementById('compass-needle');
-    const compassDisplayEl = document.getElementById('compass-display');
-    if (compassNeedleEl) {
-        compassNeedleEl.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
-    }
-    if (compassDisplayEl) {
-        compassDisplayEl.textContent = `${Math.round(smoothCompassHeading)}°`;
+    // チュートリアル（ステージ0）の針
+    const tutorialCompass = document.getElementById('compass-value');
+    if (tutorialCompass) {
+        tutorialCompass.textContent = `${Math.round(smoothCompassHeading)}°`;
     }
     
-    // ステージ2の方向針
-    const directionNeedleEl = document.getElementById('direction-needle');
-    const directionCompassDisplayEl = document.getElementById('direction-compass-display');
-    if (directionNeedleEl) {
-        directionNeedleEl.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
-    }
-    if (directionCompassDisplayEl) {
-        directionCompassDisplayEl.textContent = `${Math.round(smoothCompassHeading)}°`;
+    // 現在のステージの針を更新
+    if (currentStage > 0) {
+        const stageDef = STAGE_DEFINITIONS[currentStage];
+        if (stageDef) {
+            switch (stageDef.type) {
+                case 'compass':
+                    const compassNeedleEl = document.getElementById(`compass-needle-${currentStage}`);
+                    const compassDisplayEl = document.getElementById(`compass-display-${currentStage}`);
+                    if (compassNeedleEl) {
+                        compassNeedleEl.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
+                    }
+                    if (compassDisplayEl) {
+                        compassDisplayEl.textContent = `${Math.round(smoothCompassHeading)}°`;
+                    }
+                    break;
+                    
+                case 'direction':
+                    const directionNeedleEl = document.getElementById(`direction-needle-${currentStage}`);
+                    const directionCompassDisplayEl = document.getElementById(`direction-compass-display-${currentStage}`);
+                    if (directionNeedleEl) {
+                        directionNeedleEl.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
+                    }
+                    if (directionCompassDisplayEl) {
+                        directionCompassDisplayEl.textContent = `${Math.round(smoothCompassHeading)}°`;
+                    }
+                    break;
+                    
+                case 'compound':
+                    const miniNeedleEl = document.getElementById(`mini-compass-needle-${currentStage}`);
+                    const miniDisplayEl = document.getElementById(`mini-compass-display-${currentStage}`);
+                    if (miniNeedleEl) {
+                        miniNeedleEl.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
+                    }
+                    if (miniDisplayEl) {
+                        miniDisplayEl.textContent = `${Math.round(smoothCompassHeading)}°`;
+                    }
+                    break;
+            }
+        }
     }
     
-    // ステージ4の水平バブル
-    const levelBubble = document.getElementById('level-bubble');
-    if (levelBubble) {
-        // 傾きに基づいてバブルの位置を計算
-        const maxOffset = 80; // ピクセル
-        const offsetX = Math.max(-maxOffset, Math.min(maxOffset, smoothTiltY * 2));
-        const offsetY = Math.max(-maxOffset, Math.min(maxOffset, smoothTiltX * 2));
-        
-        levelBubble.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+    // 水平バブルの更新（新システム対応）
+    if (currentStage > 0) {
+        const stageDef = STAGE_DEFINITIONS[currentStage];
+        if (stageDef && (stageDef.type === 'level' || stageDef.type === 'compound')) {
+            const levelBubble = document.getElementById(`level-bubble-${currentStage}`);
+            if (levelBubble) {
+                // 傾きに基づいてバブルの位置を計算
+                const maxOffset = 80; // ピクセル
+                const offsetX = Math.max(-maxOffset, Math.min(maxOffset, smoothTiltY * 2));
+                const offsetY = Math.max(-maxOffset, Math.min(maxOffset, smoothTiltX * 2));
+                
+                levelBubble.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+            }
+        }
     }
     
     // ステージ5のミニコンパス針
@@ -625,9 +753,9 @@ function handleMotion(event) {
         const now = Date.now();
         if (now - lastShakeTime > SHAKE_COOLDOWN) {
             shakeDetected = true;
-            shakeCount++;
+            stageStates.shakeCount++;
             lastShakeTime = now;
-            console.log('シェイク検出:', shakeCount);
+            console.log('シェイク検出:', stageStates.shakeCount);
         }
     }
 }
@@ -635,262 +763,696 @@ function handleMotion(event) {
 // 廃止: updateSensorDisplay - updateSensorDisplaySmoothに置き換え
 // この関数は滑らかなアニメーション実装により不要
 
-// ステージ別のロジック処理
+// ==================== 新ステージロジック処理 ====================
+
+// メインステージロジック処理
 function handleStageLogic() {
-    switch (currentStage) {
-        case 1:
-            handleStage1Logic();
-            break;
-        case 2:
-            handleStage2Logic();
-            break;
-        case 3:
-            handleStage3Logic();
-            break;
-        case 4:
-            handleStage4Logic();
-            break;
-        case 5:
-            handleStage5Logic();
-            break;
-        case 6:
-            handleStage6Logic();
-            break;
+    // ステージ0（チュートリアル）はスキップ
+    if (currentStage === 0) return;
+    
+    // ステージ定義を取得
+    const stageDef = STAGE_DEFINITIONS[currentStage];
+    if (!stageDef) {
+        console.error(`ステージ${currentStage}の定義が見つかりません`);
+        return;
+    }
+    
+    // ステージロジックを実行
+    if (stageDef.logic) {
+        stageDef.logic(stageDef);
     }
 }
 
-// ステージ1: コンパス45度チャレンジ
-function handleStage1Logic() {
-    // 45度に近いかチェック（±5度の許容範囲）
-    const target = 45;
-    const tolerance = 5;
+// ==================== HTML生成関数群 ====================
+
+// ステージ1: コンパス45度チャレンジのHTML生成
+function createCompassStageHTML(stageNum, target) {
+    return `
+        <div class="puzzle-content">
+            <h2>ステージ ${stageNum}</h2>
+            <p>スマートフォンを回転させて、コンパスの値を<strong>${target}°</strong>にしてください。</p>
+            <p>${target}°を3秒間維持すればクリアです！</p>
+            
+            <div class="compass-display">
+                <div class="compass-circle">
+                    <div class="compass-needle" id="compass-needle-${stageNum}"></div>
+                    <div class="compass-directions">
+                        <span class="direction north">N</span>
+                        <span class="direction east">E</span>
+                        <span class="direction south">S</span>
+                        <span class="direction west">W</span>
+                    </div>
+                </div>
+                <div class="compass-value-large" id="compass-display-${stageNum}">${target}°</div>
+            </div>
+            
+            <div class="target-info">
+                <p>目標: ${target}°</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="hold-progress-${stageNum}"></div>
+                </div>
+                <p id="hold-timer-${stageNum}">0.0秒維持中</p>
+            </div>
+        </div>
+    `;
+}
+
+// ステージ2: 方角ナビゲーションのHTML生成
+function createDirectionStageHTML(stageNum, target, directionName, directionCode) {
+    return `
+        <div class="puzzle-content">
+            <h2>ステージ ${stageNum}</h2>
+            <p>スマートフォンを<strong>${directionName}</strong>の方角に向けてください。</p>
+            <p>${directionName}の方角は${target}°です。</p>
+            
+            <div class="direction-display">
+                <div class="current-direction" id="current-direction-${stageNum}">北</div>
+                <div class="direction-compass">
+                    <div class="direction-needle" id="direction-needle-${stageNum}"></div>
+                    <div class="direction-labels">
+                        <span class="dir-label" style="top: 10px;">N<br>北</span>
+                        <span class="dir-label" style="top: 30px; right: 30px;">NE<br>東北</span>
+                        <span class="dir-label" style="right: 10px;">E<br>東</span>
+                        <span class="dir-label" style="bottom: 30px; right: 30px;">SE<br>南東</span>
+                        <span class="dir-label" style="bottom: 10px;">S<br>南</span>
+                        <span class="dir-label" style="bottom: 30px; left: 30px;">SW<br>南西</span>
+                        <span class="dir-label" style="left: 10px;">W<br>西</span>
+                        <span class="dir-label" style="top: 30px; left: 30px;">NW<br>北西</span>
+                    </div>
+                </div>
+                <div class="compass-value-large" id="direction-compass-display-${stageNum}">0°</div>
+            </div>
+            
+            <div class="target-direction">
+                <p>目標方角: ${directionName}（${directionCode}） - ${target}°</p>
+                <div class="accuracy-indicator" id="accuracy-indicator-${stageNum}">
+                    <span id="accuracy-text-${stageNum}">方角を調整してください</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ステージ3: 水平チャレンジのHTML生成
+function createLevelStageHTML(stageNum) {
+    return `
+        <div class="puzzle-content">
+            <h2>ステージ ${stageNum}</h2>
+            <p>スマートフォンを<strong>水平</strong>に保ってください。</p>
+            <p>3秒間水平を維持すればクリアです！</p>
+            
+            <div class="level-display">
+                <div class="level-circle">
+                    <div class="level-bubble" id="level-bubble-${stageNum}"></div>
+                    <div class="level-crosshair"></div>
+                </div>
+                
+                <div class="level-info">
+                    <div id="tilt-magnitude-${stageNum}">傾き: 0°</div>
+                    <div class="accuracy-indicator" id="level-indicator-${stageNum}">
+                        <span id="level-timer-${stageNum}">0.0秒維持中</span>
+                    </div>
+                    
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="level-progress-${stageNum}"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ステージ4: シェイクチャレンジのHTML生成
+function createShakeStageHTML(stageNum, requiredShakes) {
+    return `
+        <div class="puzzle-content">
+            <h2>ステージ ${stageNum}</h2>
+            <p>スマートフォンを<strong>振って</strong>ください。</p>
+            <p>${requiredShakes}回のシェイクを検出すればクリアです！</p>
+            
+            <div class="shake-display">
+                <div class="shake-icon">📱</div>
+                <div class="shake-count-display" id="shake-count-${stageNum}">0 / ${requiredShakes}</div>
+                
+                <div class="shake-instruction">
+                    <p>デバイスを上下に振ってください</p>
+                </div>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" id="shake-progress-${stageNum}"></div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ステージ5: 複合チャレンジのHTML生成
+function createCompoundStageHTML(stageNum) {
+    return `
+        <div class="puzzle-content">
+            <h2>ステージ ${stageNum}</h2>
+            <p><strong>複合チャレンジ</strong></p>
+            <p>以下の3つの条件を同時に満たしてください：</p>
+            
+            <div class="compound-challenge">
+                <div class="challenge-conditions">
+                    <div class="condition-indicator" id="direction-indicator-${stageNum}">
+                        北東向き: ✗ (0°差)
+                    </div>
+                    <div class="condition-indicator" id="level-indicator-${stageNum}">
+                        水平: ✗ (0°傾き)
+                    </div>
+                    <div class="condition-indicator" id="shake-indicator-${stageNum}">
+                        シェイク: 0/3
+                    </div>
+                </div>
+                
+                <div class="final-status" id="final-status-${stageNum}">
+                    条件を満たしてください
+                </div>
+                
+                <div class="mini-compass">
+                    <div class="mini-compass-circle">
+                        <div class="mini-compass-needle" id="mini-compass-needle-${stageNum}"></div>
+                        <div class="mini-compass-directions">
+                            <span class="mini-direction north">N</span>
+                            <span class="mini-direction east">E</span>
+                            <span class="mini-direction south">S</span>
+                            <span class="mini-direction west">W</span>
+                        </div>
+                    </div>
+                    <div class="mini-compass-value" id="mini-compass-display-${stageNum}">0°</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ステージ6: モールス信号のHTML生成
+function createMorseStageHTML(stageNum) {
+    return `
+        <div class="puzzle-content">
+            <h2>ステージ ${stageNum}</h2>
+            <p><strong>モールス信号</strong>を解読してください。</p>
+            <p>バイブレーションで再生されるモールス信号を聞いて、正しい英単語を入力してください。</p>
+            
+            <div class="morse-display">
+                <div class="morse-instruction">
+                    <div class="morse-legend">
+                        <div class="morse-legend-item">
+                            <span class="morse-dot">●</span>
+                            <span>短い振動 = ドット (.)</span>
+                        </div>
+                        <div class="morse-legend-item">
+                            <span class="morse-dash">━</span>
+                            <span>長い振動 = ダッシュ (-)</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="morse-controls">
+                    <button id="play-morse-btn-${stageNum}" class="next-button morse-button">
+                        📳 モールス信号を再生
+                    </button>
+                    
+                    <div class="morse-visual-container">
+                        <div class="morse-visual" id="morse-visual-${stageNum}"></div>
+                        <div class="morse-visual-label">視覚的フィードバック</div>
+                    </div>
+                    
+                    <div class="morse-status" id="morse-status-${stageNum}">
+                        新しいモールス信号を再生する準備ができました
+                    </div>
+                </div>
+                
+                <div class="morse-input-section">
+                    <label for="morse-input-${stageNum}" class="morse-label">解読した英単語を入力:</label>
+                    <input type="text" id="morse-input-${stageNum}" class="morse-input" placeholder="例: SOS" maxlength="8" autocomplete="off">
+                    
+                    <div class="morse-hint" id="morse-hint-${stageNum}"></div>
+                    
+                    <button id="submit-morse-btn-${stageNum}" class="next-button morse-submit">
+                        答えを送信
+                    </button>
+                </div>
+                
+                <div class="morse-help">
+                    <details>
+                        <summary>モールス信号表を見る</summary>
+                        <div class="morse-table">
+                            <div class="morse-table-row">
+                                <span>A: ●━</span>
+                                <span>B: ━●●●</span>
+                                <span>C: ━●━●</span>
+                                <span>D: ━●●</span>
+                                <span>E: ●</span>
+                            </div>
+                            <div class="morse-table-row">
+                                <span>F: ●●━●</span>
+                                <span>G: ━━●</span>
+                                <span>H: ●●●●</span>
+                                <span>I: ●●</span>
+                                <span>J: ●━━━</span>
+                            </div>
+                            <div class="morse-table-row">
+                                <span>K: ━●━</span>
+                                <span>L: ●━●●</span>
+                                <span>M: ━━</span>
+                                <span>N: ━●</span>
+                                <span>O: ━━━</span>
+                            </div>
+                            <div class="morse-table-row">
+                                <span>P: ●━━●</span>
+                                <span>Q: ━━●━</span>
+                                <span>R: ●━●</span>
+                                <span>S: ●●●</span>
+                                <span>T: ━</span>
+                            </div>
+                            <div class="morse-table-row">
+                                <span>U: ●●━</span>
+                                <span>V: ●●●━</span>
+                                <span>W: ●━━</span>
+                                <span>X: ━●●━</span>
+                                <span>Y: ━●━━</span>
+                                <span>Z: ━━●●</span>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ステージ7: 光センサーチャレンジのHTML生成
+function createLightStageHTML(stageNum) {
+    return `
+        <div class="puzzle-content">
+            <h2>ステージ ${stageNum}</h2>
+            <p><strong>光センサーチャレンジ</strong></p>
+            <p>デバイスのカメラで明るさを検出します。</p>
+            <p>明るい場所と暗い場所を交互に移動してください。</p>
+            
+            <div class="light-display">
+                <div class="light-sensor-visual">
+                    <div class="light-circle" id="light-circle-${stageNum}">
+                        <div class="light-level-indicator" id="light-level-indicator-${stageNum}"></div>
+                    </div>
+                    <div class="light-value" id="light-value-${stageNum}">待機中...</div>
+                </div>
+                
+                <div class="light-instructions">
+                    <p>1. 「カメラ開始」ボタンを押してください</p>
+                    <p>2. 明るい場所に移動（3秒間）</p>
+                    <p>3. 暗い場所に移動（3秒間）</p>
+                    <p>4. 再び明るい場所に移動（3秒間）</p>
+                </div>
+                
+                <div class="light-controls">
+                    <button id="start-camera-btn-${stageNum}" class="next-button">📷 カメラ開始</button>
+                    <button id="stop-camera-btn-${stageNum}" class="next-button" style="display: none;">⏹️ カメラ停止</button>
+                </div>
+                
+                <div class="light-progress">
+                    <div class="light-step" id="light-step-1-${stageNum}">
+                        <span class="step-icon">☀️</span>
+                        <span class="step-text">明るい場所 (1/3)</span>
+                        <div class="step-progress" id="light-progress-1-${stageNum}"></div>
+                    </div>
+                    <div class="light-step" id="light-step-2-${stageNum}">
+                        <span class="step-icon">🌙</span>
+                        <span class="step-text">暗い場所 (2/3)</span>
+                        <div class="step-progress" id="light-progress-2-${stageNum}"></div>
+                    </div>
+                    <div class="light-step" id="light-step-3-${stageNum}">
+                        <span class="step-icon">☀️</span>
+                        <span class="step-text">明るい場所 (3/3)</span>
+                        <div class="step-progress" id="light-progress-3-${stageNum}"></div>
+                    </div>
+                </div>
+                
+                <div class="light-status" id="light-status-${stageNum}">
+                    カメラを開始して光センサーチャレンジを始めてください
+                </div>
+                
+                <video id="light-camera-${stageNum}" style="display: none;" autoplay></video>
+                <canvas id="light-canvas-${stageNum}" style="display: none;"></canvas>
+            </div>
+        </div>
+    `;
+}
+
+// ==================== ステージ生成・管理関数 ====================
+
+// 動的ステージ生成
+function createStage(stageNum) {
+    const stageDef = STAGE_DEFINITIONS[stageNum];
+    if (!stageDef) {
+        console.error(`ステージ${stageNum}の定義が見つかりません`);
+        return null;
+    }
     
-    // 最短角度差を使用
+    console.log(`🏗️ ステージ${stageNum}を生成中: ${stageDef.title}`);
+    
+    const stageElement = document.createElement('div');
+    stageElement.id = `stage-${stageNum}`;
+    stageElement.className = 'stage';
+    stageElement.innerHTML = stageDef.createHTML();
+    
+    return stageElement;
+}
+
+// 全ステージを生成してコンテナに追加
+function initializeAllStages() {
+    const container = document.getElementById('dynamic-stages-container');
+    if (!container) {
+        console.error('❌ dynamic-stages-container が見つかりません');
+        return false;
+    }
+    
+    // 既存のステージをクリア
+    container.innerHTML = '';
+    
+    // ステージ1〜7を生成
+    for (let i = 1; i <= 7; i++) {
+        const stageElement = createStage(i);
+        if (stageElement) {
+            container.appendChild(stageElement);
+            console.log(`✅ ステージ${i}を追加しました`);
+        }
+    }
+    
+    // ステージのイベントリスナーを設定
+    setupStageEventListeners();
+    
+    console.log('🎮 全ステージの生成が完了しました');
+    return true;
+}
+
+// ステージのイベントリスナー設定
+function setupStageEventListeners() {
+    // ステージ6: モールス信号のイベントリスナー
+    const playMorseBtn = document.getElementById('play-morse-btn-6');
+    const submitMorseBtn = document.getElementById('submit-morse-btn-6');
+    
+    if (playMorseBtn) {
+        playMorseBtn.addEventListener('click', () => {
+            if (stageStates.currentWord) {
+                playMorseVibration(stageStates.currentWord);
+            }
+        });
+    }
+    
+    if (submitMorseBtn) {
+        submitMorseBtn.addEventListener('click', () => {
+            checkMorseInput();
+        });
+    }
+    
+    // ステージ7: 光センサーのイベントリスナー
+    const startCameraBtn = document.getElementById('start-camera-btn-7');
+    const stopCameraBtn = document.getElementById('stop-camera-btn-7');
+    
+    if (startCameraBtn) {
+        startCameraBtn.addEventListener('click', () => {
+            startLightSensor();
+        });
+    }
+    
+    if (stopCameraBtn) {
+        stopCameraBtn.addEventListener('click', () => {
+            stopLightSensor();
+        });
+    }
+    
+    console.log('🔗 ステージイベントリスナーを設定しました');
+}
+
+// ==================== 新ロジック処理関数群 ====================
+
+// コンパスロジック処理
+function handleCompassLogic(stageDef) {
+    const stageNum = currentStage;
+    const target = stageDef.target;
+    const tolerance = stageDef.tolerance;
+    
+    // UI要素を取得
+    const needleEl = document.getElementById(`compass-needle-${stageNum}`);
+    const displayEl = document.getElementById(`compass-display-${stageNum}`);
+    const progressEl = document.getElementById(`hold-progress-${stageNum}`);
+    const timerEl = document.getElementById(`hold-timer-${stageNum}`);
+    
+    // 針の更新
+    if (needleEl) {
+        needleEl.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
+    }
+    if (displayEl) {
+        displayEl.textContent = `${Math.round(smoothCompassHeading)}°`;
+    }
+    
+    // 目標角度との差を計算
     const angleDiff = Math.abs(getShortestAngleDifference(smoothCompassHeading, target));
     const isNearTarget = angleDiff <= tolerance;
     
-    if (isNearTarget && !isHolding) {
+    if (isNearTarget && !stageStates.isHolding) {
         // 保持開始
-        isHolding = true;
-        holdStartTime = Date.now();
-        startHoldTimer();
-    } else if (!isNearTarget && isHolding) {
+        stageStates.isHolding = true;
+        stageStates.holdStartTime = Date.now();
+    } else if (!isNearTarget && stageStates.isHolding) {
         // 保持中断
-        stopHoldTimer();
+        stageStates.isHolding = false;
+        stageStates.holdTimer = 0;
     }
-}
-
-// 保持タイマー開始
-function startHoldTimer() {
-    holdInterval = setInterval(() => {
-        holdTimer = (Date.now() - holdStartTime) / 1000;
+    
+    if (stageStates.isHolding) {
+        const holdTime = Date.now() - stageStates.holdStartTime;
+        const progress = Math.min((holdTime / stageDef.holdTime) * 100, 100);
         
-        // プログレスバー更新
-        const progress = Math.min((holdTimer / 3) * 100, 100);
-        if (holdProgress) holdProgress.style.width = `${progress}%`;
-        if (holdTimerEl) holdTimerEl.textContent = `${holdTimer.toFixed(1)}秒維持中`;
+        if (progressEl) progressEl.style.width = `${progress}%`;
+        if (timerEl) timerEl.textContent = `${(holdTime / 1000).toFixed(1)}秒維持中`;
         
-        // 3秒達成でクリア
-        if (holdTimer >= 3) {
-            stopHoldTimer();
-            stageComplete('ステージ1クリア！\n45°を3秒間維持できました！');
-        }
-    }, 100);
-}
-
-// 保持タイマー停止
-function stopHoldTimer() {
-    if (holdInterval) {
-        clearInterval(holdInterval);
-        holdInterval = null;
-    }
-    isHolding = false;
-    holdTimer = 0;
-    
-    // UI リセット
-    if (holdProgress) holdProgress.style.width = '0%';
-    if (holdTimerEl) holdTimerEl.textContent = '0.0秒維持中';
-}
-
-// ステージ2: 南西を向く
-function handleStage2Logic() {
-    // 現在の方角を計算
-    const direction = getDirectionFromHeading(smoothCompassHeading);
-    const currentDirectionElement = document.getElementById('current-direction');
-    if (currentDirectionElement) currentDirectionElement.textContent = direction;
-    
-    // 南西（225度）に近いかチェック
-    const target = 225; // 南西は225度
-    const tolerance = 10; // 許容範囲を少し広く
-    
-    // 最短角度差を使用
-    const difference = Math.abs(getShortestAngleDifference(smoothCompassHeading, target));
-    
-    // 精度表示更新
-    const accuracyIndicatorElement = document.getElementById('accuracy-indicator');
-    const accuracyTextElement = document.getElementById('accuracy-text');
-    
-    if (difference <= tolerance) {
-        if (accuracyIndicatorElement) accuracyIndicatorElement.classList.add('success');
-        if (difference <= 5) {
-            if (accuracyTextElement) accuracyTextElement.textContent = '完璧！南西を向いています！';
-            // 2秒後にクリア
-            setTimeout(() => {
-                stageComplete('ステージ2クリア！\n南西の方角を見つけました！');
-            }, 2000);
-        } else {
-            if (accuracyTextElement) accuracyTextElement.textContent = '良い感じです！もう少し調整してください。';
+        if (holdTime >= stageDef.holdTime && !stageStates.currentCompleteFlag) {
+            stageStates.currentCompleteFlag = true;
+            stageComplete(`${stageDef.title}クリア！\n${target}°を3秒間維持できました！`);
         }
     } else {
-        if (accuracyIndicatorElement) accuracyIndicatorElement.classList.remove('success');
-        if (difference <= 20) {
-            if (accuracyTextElement) accuracyTextElement.textContent = '近づいています！';
+        if (progressEl) progressEl.style.width = '0%';
+        if (timerEl) timerEl.textContent = '0.0秒維持中';
+    }
+}
+
+// 方角ロジック処理
+function handleDirectionLogic(stageDef) {
+    const stageNum = currentStage;
+    const target = stageDef.target;
+    const tolerance = stageDef.tolerance;
+    
+    // UI要素を取得
+    const needleEl = document.getElementById(`direction-needle-${stageNum}`);
+    const displayEl = document.getElementById(`direction-compass-display-${stageNum}`);
+    const currentDirEl = document.getElementById(`current-direction-${stageNum}`);
+    const accuracyEl = document.getElementById(`accuracy-indicator-${stageNum}`);
+    const textEl = document.getElementById(`accuracy-text-${stageNum}`);
+    
+    // 針の更新
+    if (needleEl) {
+        needleEl.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
+    }
+    if (displayEl) {
+        displayEl.textContent = `${Math.round(smoothCompassHeading)}°`;
+    }
+    
+    // 現在の方角を表示
+    const direction = getDirectionFromHeading(smoothCompassHeading);
+    if (currentDirEl) currentDirEl.textContent = direction;
+    
+    // 目標角度との差を計算
+    const difference = Math.abs(getShortestAngleDifference(smoothCompassHeading, target));
+    
+    if (difference <= tolerance) {
+        if (accuracyEl) accuracyEl.classList.add('success');
+        if (difference <= 5) {
+            const targetName = stageDef.subtitle.match(/(\w+)の方角/)[1];
+            if (textEl) textEl.textContent = `完璧！${targetName}を向いています！`;
+            
+            if (!stageStates.currentCompleteFlag) {
+                stageStates.currentCompleteFlag = true;
+                setTimeout(() => {
+                    stageComplete(`${stageDef.title}クリア！\n${targetName}の方角を見つけました！`);
+                }, 2000);
+            }
         } else {
-            if (accuracyTextElement) accuracyTextElement.textContent = '方角を調整してください';
+            if (textEl) textEl.textContent = '良い感じです！もう少し調整してください。';
+        }
+    } else {
+        if (accuracyEl) accuracyEl.classList.remove('success');
+        if (difference <= 20) {
+            if (textEl) textEl.textContent = '近づいています！';
+        } else {
+            if (textEl) textEl.textContent = '方角を調整してください';
         }
     }
 }
 
-// ステージ3: シェイクチャレンジ
-function handleStage3Logic() {
-    const targetShakes = 5;
-    const shakeProgress = document.getElementById('shake-progress');
-    const shakeCountDisplay = document.getElementById('shake-count');
+// 水平ロジック処理
+function handleLevelLogic(stageDef) {
+    const stageNum = currentStage;
+    const tolerance = stageDef.tolerance;
+    const requiredTime = stageDef.holdTime;
     
-    if (shakeCountDisplay) {
-        shakeCountDisplay.textContent = `${shakeCount} / ${targetShakes}`;
+    // UI要素を取得
+    const bubbleEl = document.getElementById(`level-bubble-${stageNum}`);
+    const indicatorEl = document.getElementById(`level-indicator-${stageNum}`);
+    const timerEl = document.getElementById(`level-timer-${stageNum}`);
+    const tiltEl = document.getElementById(`tilt-magnitude-${stageNum}`);
+    const progressEl = document.getElementById(`level-progress-${stageNum}`);
+    
+    const tiltMagnitude = Math.sqrt(smoothTiltX * smoothTiltX + smoothTiltY * smoothTiltY);
+    const isLevel = tiltMagnitude <= tolerance;
+    
+    if (tiltEl) tiltEl.textContent = `傾き: ${Math.round(tiltMagnitude)}°`;
+    
+    // バブルの位置更新
+    if (bubbleEl) {
+        const maxOffset = 40;
+        const offsetX = Math.max(-maxOffset, Math.min(maxOffset, smoothTiltX * 4));
+        const offsetY = Math.max(-maxOffset, Math.min(maxOffset, smoothTiltY * 4));
+        bubbleEl.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
     }
     
-    if (shakeProgress) {
-        const progress = Math.min((shakeCount / targetShakes) * 100, 100);
-        shakeProgress.style.width = `${progress}%`;
+    if (isLevel && !stageStates.isHolding) {
+        stageStates.isHolding = true;
+        stageStates.holdStartTime = Date.now();
+        if (indicatorEl) indicatorEl.classList.add('success');
+    } else if (!isLevel && stageStates.isHolding) {
+        stageStates.isHolding = false;
+        stageStates.holdTimer = 0;
+        if (indicatorEl) indicatorEl.classList.remove('success');
     }
     
-    if (shakeCount >= targetShakes) {
+    if (stageStates.isHolding) {
+        const holdTime = Date.now() - stageStates.holdStartTime;
+        const progress = Math.min((holdTime / requiredTime) * 100, 100);
+        
+        if (timerEl) timerEl.textContent = `${(holdTime / 1000).toFixed(1)}秒維持中`;
+        if (progressEl) progressEl.style.width = `${progress}%`;
+        
+        if (holdTime >= requiredTime && !stageStates.currentCompleteFlag) {
+            stageStates.currentCompleteFlag = true;
+            stageStates.isHolding = false;
+            stageComplete(`${stageDef.title}クリア！\n3秒間水平を維持しました！`);
+        }
+    } else {
+        if (timerEl) timerEl.textContent = '0.0秒維持中';
+        if (progressEl) progressEl.style.width = '0%';
+    }
+}
+
+// シェイクロジック処理
+function handleShakeLogic(stageDef) {
+    const stageNum = currentStage;
+    const requiredShakes = stageDef.requiredShakes;
+    
+    // UI要素を取得
+    const countEl = document.getElementById(`shake-count-${stageNum}`);
+    const progressEl = document.getElementById(`shake-progress-${stageNum}`);
+    
+    if (countEl) {
+        countEl.textContent = `${stageStates.shakeCount} / ${requiredShakes}`;
+    }
+    
+    if (progressEl) {
+        const progress = Math.min((stageStates.shakeCount / requiredShakes) * 100, 100);
+        progressEl.style.width = `${progress}%`;
+    }
+    
+    if (stageStates.shakeCount >= requiredShakes && !stageStates.currentCompleteFlag) {
+        stageStates.currentCompleteFlag = true;
         setTimeout(() => {
-            stageComplete('ステージ3クリア！\nシェイクを5回検出しました！');
+            stageComplete(`${stageDef.title}クリア！\nシェイクを${requiredShakes}回検出しました！`);
         }, 1000);
     }
 }
 
-// ステージ4: 水平維持チャレンジ
-function handleStage4Logic() {
-    const tiltTolerance = 5; // ±5度の許容範囲
-    const requiredTime = 3000; // 3秒間
+// 複合ロジック処理
+function handleCompoundLogic(stageDef) {
+    const stageNum = currentStage;
+    const targetDirection = stageDef.targetDirection;
+    const directionTolerance = stageDef.directionTolerance;
+    const levelTolerance = stageDef.levelTolerance;
+    const requiredShakes = stageDef.requiredShakes;
     
-    const tiltMagnitude = Math.sqrt(smoothTiltX * smoothTiltX + smoothTiltY * smoothTiltY);
-    const isLevel = tiltMagnitude <= tiltTolerance;
+    // UI要素を取得
+    const directionEl = document.getElementById(`direction-indicator-${stageNum}`);
+    const levelEl = document.getElementById(`level-indicator-${stageNum}`);
+    const shakeEl = document.getElementById(`shake-indicator-${stageNum}`);
+    const statusEl = document.getElementById(`final-status-${stageNum}`);
+    const needleEl = document.getElementById(`mini-compass-needle-${stageNum}`);
+    const displayEl = document.getElementById(`mini-compass-display-${stageNum}`);
     
-    const levelIndicator = document.getElementById('level-indicator');
-    const levelTimer = document.getElementById('level-timer');
-    const tiltDisplay = document.getElementById('tilt-magnitude');
-    
-    if (tiltDisplay) {
-        tiltDisplay.textContent = `傾き: ${Math.round(tiltMagnitude)}°`;
+    // 針の更新
+    if (needleEl) {
+        needleEl.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
+    }
+    if (displayEl) {
+        displayEl.textContent = `${Math.round(smoothCompassHeading)}°`;
     }
     
-    if (isLevel && !isHolding) {
-        // 水平維持開始
-        isHolding = true;
-        holdStartTime = Date.now();
-        if (levelIndicator) levelIndicator.classList.add('success');
-    } else if (!isLevel && isHolding) {
-        // 水平維持中断
-        isHolding = false;
-        holdTimer = 0;
-        if (levelIndicator) levelIndicator.classList.remove('success');
-    }
-    
-    if (isHolding) {
-        holdTimer = Date.now() - holdStartTime;
-        const progress = Math.min((holdTimer / requiredTime) * 100, 100);
-        
-        if (levelTimer) {
-            levelTimer.textContent = `${(holdTimer / 1000).toFixed(1)}秒維持中`;
-        }
-        
-        const levelProgress = document.getElementById('level-progress');
-        if (levelProgress) {
-            levelProgress.style.width = `${progress}%`;
-        }
-        
-        if (holdTimer >= requiredTime) {
-            isHolding = false;
-            stageComplete('ステージ4クリア！\n3秒間水平を維持しました！');
-        }
-    } else {
-        if (levelTimer) {
-            levelTimer.textContent = '0.0秒維持中';
-        }
-    }
-}
-
-// ステージ5: 複合チャレンジ
-function handleStage5Logic() {
-    const targetDirection = 0; // 北（0度）
-    const directionTolerance = 10;
-    const tiltTolerance = 5;
-    const requiredShakes = 3;
-    
-    // 北を向いているかチェック
+    // 条件チェック
     const directionDiff = Math.abs(getShortestAngleDifference(smoothCompassHeading, targetDirection));
-    const isFacingNorth = directionDiff <= directionTolerance;
+    const isFacingTarget = directionDiff <= directionTolerance;
     
-    // 水平かチェック
     const tiltMagnitude = Math.sqrt(smoothTiltX * smoothTiltX + smoothTiltY * smoothTiltY);
-    const isLevel = tiltMagnitude <= tiltTolerance;
+    const isLevel = tiltMagnitude <= levelTolerance;
     
-    // 全条件を満たしているかチェック
-    const allConditionsMet = isFacingNorth && isLevel && shakeCount >= requiredShakes;
+    const hasEnoughShakes = stageStates.shakeCount >= requiredShakes;
     
     // UI更新
-    const northIndicator = document.getElementById('north-indicator');
-    const levelIndicator5 = document.getElementById('level-indicator-5');
-    const shakeIndicator = document.getElementById('shake-indicator');
-    const finalStatus = document.getElementById('final-status');
-    
-    if (northIndicator) {
-        northIndicator.className = 'condition-indicator ' + (isFacingNorth ? 'success' : '');
-        northIndicator.textContent = `北向き: ${isFacingNorth ? '✓' : '✗'} (${Math.round(directionDiff)}°差)`;
+    if (directionEl) {
+        directionEl.className = 'condition-indicator ' + (isFacingTarget ? 'success' : '');
+        directionEl.textContent = `北東向き: ${isFacingTarget ? '✓' : '✗'} (${Math.round(directionDiff)}°差)`;
     }
     
-    if (levelIndicator5) {
-        levelIndicator5.className = 'condition-indicator ' + (isLevel ? 'success' : '');
-        levelIndicator5.textContent = `水平: ${isLevel ? '✓' : '✗'} (${Math.round(tiltMagnitude)}°傾き)`;
+    if (levelEl) {
+        levelEl.className = 'condition-indicator ' + (isLevel ? 'success' : '');
+        levelEl.textContent = `水平: ${isLevel ? '✓' : '✗'} (${Math.round(tiltMagnitude)}°傾き)`;
     }
     
-    if (shakeIndicator) {
-        shakeIndicator.className = 'condition-indicator ' + (shakeCount >= requiredShakes ? 'success' : '');
-        shakeIndicator.textContent = `シェイク: ${shakeCount}/${requiredShakes} ${shakeCount >= requiredShakes ? '✓' : ''}`;
+    if (shakeEl) {
+        shakeEl.className = 'condition-indicator ' + (hasEnoughShakes ? 'success' : '');
+        shakeEl.textContent = `シェイク: ${stageStates.shakeCount}/${requiredShakes} ${hasEnoughShakes ? '✓' : ''}`;
     }
     
-    if (finalStatus) {
+    const allConditionsMet = isFacingTarget && isLevel && hasEnoughShakes;
+    
+    if (statusEl) {
         if (allConditionsMet) {
-            finalStatus.textContent = '🎉 全ての条件をクリア！';
-            finalStatus.className = 'final-status success';
+            statusEl.textContent = '🎉 全ての条件をクリア！';
+            statusEl.className = 'final-status success';
             
-            // 重複実行を防ぐためのフラグチェック
-            if (!window.stage5Completed) {
-                window.stage5Completed = true;
-                console.log('🎯 ステージ5の全条件をクリア！2秒後にクリア処理を実行');
+            if (!stageStates.currentCompleteFlag) {
+                stageStates.currentCompleteFlag = true;
                 setTimeout(() => {
-                    console.log('⏰ ステージ5クリア処理を実行中...');
-                    stageComplete('ステージ5クリア！\n全ての条件を満たしました！');
-                    window.stage5Completed = false; // フラグをリセット
+                    stageComplete(`${stageDef.title}クリア！\n全ての条件を満たしました！`);
                 }, 2000);
             }
         } else {
-            finalStatus.textContent = '条件を満たしてください';
-            finalStatus.className = 'final-status';
-            window.stage5Completed = false; // 条件未達成時はフラグをリセット
+            statusEl.textContent = '条件を満たしてください';
+            statusEl.className = 'final-status';
         }
     }
 }
 
-// ステージ6: バイブレーションモールス信号
-function handleStage6Logic() {
-    // このステージではセンサーロジックは不要
-    // バイブレーション再生とテキスト入力の管理のみ
+// モールスロジック処理
+function handleMorseLogic(stageDef) {
+    // モールス信号ステージは主にイベント駆動なので、
+    // センサーデータに基づく定期処理は不要
+}
+
+// 光センサーロジック処理
+function handleLightLogic(stageDef) {
+    // 光センサーはカメラベースで独立して動作するため、
+    // ここでは特別な処理は不要
 }
 
 // バイブレーション機能チェック
@@ -1333,75 +1895,55 @@ function checkSensorPermissionStatus() {
     }
 }
 
-// ステージ状態リセット
+// ステージ状態リセット（新システム対応）
 function resetStageState() {
+    console.log(`🔄 ステージ${currentStage}の状態をリセット中...`);
+    
     // 共通状態リセット
-    stopHoldTimer();
-    isHolding = false;
-    holdTimer = 0;
+    stageStates.currentCompleteFlag = false;
+    stageStates.isHolding = false;
+    stageStates.holdStartTime = 0;
     
-    // ステージ2の状態リセット
-    const accuracyIndicatorElement = document.getElementById('accuracy-indicator');
-    const accuracyTextElement = document.getElementById('accuracy-text');
-    if (accuracyIndicatorElement) {
-        accuracyIndicatorElement.classList.remove('success');
-    }
-    if (accuracyTextElement) {
-        accuracyTextElement.textContent = '方角を調整してください';
-    }
-    
-    // ステージ3の状態リセット（シェイクカウンタはリセットしない）
-    // shakeCount は累積値として維持
-    
-    // ステージ4の状態リセット
-    const levelIndicator = document.getElementById('level-indicator');
-    if (levelIndicator) {
-        levelIndicator.classList.remove('success');
-    }
-    
-    // ステージ5の状態リセット
-    const levelIndicator5 = document.getElementById('level-indicator-5');
-    if (levelIndicator5) {
-        levelIndicator5.classList.remove('success');
-    }
-    
-    // ステージ6の状態リセット
-    if (currentStage === 6) {
-        isPlayingMorse = false;
-        playerInput = '';
-        const morseInput = document.getElementById('morse-input');
-        const morseHint = document.getElementById('morse-hint');
-        const morseStatus = document.getElementById('morse-status');
-        
-        if (morseInput) {
-            morseInput.value = '';
-            morseInput.style.borderColor = '#333333';
+    // ステージタイプ別のリセット
+    const stageDef = STAGE_DEFINITIONS[currentStage];
+    if (stageDef) {
+        switch (stageDef.type) {
+            case 'shake':
+            case 'compound':
+                // シェイクステージまたは複合ステージでシェイクカウントをリセット
+                stageStates.shakeCount = 0;
+                shakeDetected = false;
+                console.log(`🔄 ${stageDef.type}ステージ: シェイクカウントをリセット`);
+                break;
+                
+            case 'morse':
+                // モールス信号ステージのリセット
+                isPlayingMorse = false;
+                stageStates.currentWord = generateNewMorseWord();
+                console.log('🔄 モールス信号の新しい単語:', stageStates.currentWord);
+                
+                const morseInput = document.getElementById(`morse-input-${currentStage}`);
+                const morseHint = document.getElementById(`morse-hint-${currentStage}`);
+                const morseStatus = document.getElementById(`morse-status-${currentStage}`);
+                
+                if (morseInput) {
+                    morseInput.value = '';
+                    morseInput.style.borderColor = '#333333';
+                }
+                if (morseHint) morseHint.textContent = '';
+                if (morseStatus) morseStatus.textContent = '新しいモールス信号を再生する準備ができました';
+                break;
+                
+            case 'light':
+                // 光センサーステージのリセット
+                stageStates.lightLevels = [];
+                stopLightSensor(); // カメラを停止
+                console.log('🔄 光センサーステージをリセット');
+                break;
         }
-        if (morseHint) morseHint.textContent = '';
-        if (morseStatus) morseStatus.textContent = '新しいモールス信号を再生する準備ができました';
-        
-        // 新しい単語を生成
-        currentMorseWord = generateNewMorseWord();
-        console.log('新しいモールス信号の単語:', currentMorseWord);
     }
     
-    // ステージ5の完了フラグをリセット
-    if (window.stage5Completed) {
-        window.stage5Completed = false;
-        console.log('🔄 ステージ5完了フラグをリセット');
-    }
-    
-    // 新しいステージ開始時にシェイクカウントをリセット
-    if (currentStage === 3) {
-        shakeCount = 0;
-        shakeDetected = false;
-        console.log('🔄 ステージ3: シェイクカウントをリセット');
-    } else if (currentStage === 5) {
-        // ステージ5ではシェイクカウントをリセット
-        shakeCount = 0;
-        shakeDetected = false;
-        console.log('🔄 ステージ5: シェイクカウントをリセット');
-    }
+    console.log(`✅ ステージ${currentStage}の状態リセット完了`);
 }
 
 // デバッグ用: センサーサポート確認
@@ -1673,4 +2215,242 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('  - goToStage(n): ステージnに移動');
     console.log('  - toggleDebugMode(): デバッグモード切り替え（またはD+E+B+U+Gキー）');
     console.log('  - resetGame(): ゲームリセット');
-}); 
+});
+
+// ==================== 光センサー関数群 ====================
+
+let lightSensorActive = false;
+let lightSensorStream = null;
+let lightStep = 1; // 1: 明るい場所, 2: 暗い場所, 3: 明るい場所
+let lightStepStartTime = 0;
+
+// 光センサー開始
+async function startLightSensor() {
+    console.log('📷 光センサーを開始します');
+    
+    try {
+        const constraints = {
+            video: {
+                facingMode: 'environment', // 背面カメラを優先
+                width: { ideal: 640 },
+                height: { ideal: 480 }
+            }
+        };
+        
+        lightSensorStream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        const video = document.getElementById(`light-camera-${currentStage}`);
+        const startBtn = document.getElementById(`start-camera-btn-${currentStage}`);
+        const stopBtn = document.getElementById(`stop-camera-btn-${currentStage}`);
+        const statusEl = document.getElementById(`light-status-${currentStage}`);
+        
+        if (video && lightSensorStream) {
+            video.srcObject = lightSensorStream;
+            lightSensorActive = true;
+            lightStep = 1;
+            lightStepStartTime = Date.now();
+            
+            if (startBtn) startBtn.style.display = 'none';
+            if (stopBtn) stopBtn.style.display = 'inline-block';
+            if (statusEl) statusEl.textContent = '明るい場所に移動してください（3秒間）';
+            
+            // 明るさ検出ループを開始
+            detectLightLevel();
+            
+            console.log('✅ 光センサーが開始されました');
+        }
+    } catch (error) {
+        console.error('❌ カメラアクセスエラー:', error);
+        
+        const statusEl = document.getElementById(`light-status-${currentStage}`);
+        if (statusEl) {
+            statusEl.textContent = 'カメラアクセスに失敗しました。カメラの許可を確認してください。';
+            statusEl.style.color = '#ff6b6b';
+        }
+        
+        alert('カメラアクセスに失敗しました。\nカメラの許可を確認してから再試行してください。');
+    }
+}
+
+// 光センサー停止
+function stopLightSensor() {
+    console.log('⏹️ 光センサーを停止します');
+    
+    lightSensorActive = false;
+    
+    if (lightSensorStream) {
+        lightSensorStream.getTracks().forEach(track => track.stop());
+        lightSensorStream = null;
+    }
+    
+    const startBtn = document.getElementById(`start-camera-btn-${currentStage}`);
+    const stopBtn = document.getElementById(`stop-camera-btn-${currentStage}`);
+    const statusEl = document.getElementById(`light-status-${currentStage}`);
+    
+    if (startBtn) startBtn.style.display = 'inline-block';
+    if (stopBtn) stopBtn.style.display = 'none';
+    if (statusEl) {
+        statusEl.textContent = 'カメラを開始して光センサーチャレンジを始めてください';
+        statusEl.style.color = '';
+    }
+    
+    // プログレスバーをリセット
+    for (let i = 1; i <= 3; i++) {
+        const progressEl = document.getElementById(`light-progress-${i}-${currentStage}`);
+        if (progressEl) progressEl.style.width = '0%';
+    }
+    
+    console.log('✅ 光センサーが停止されました');
+}
+
+// 明るさレベル検出
+function detectLightLevel() {
+    if (!lightSensorActive) return;
+    
+    const video = document.getElementById(`light-camera-${currentStage}`);
+    const canvas = document.getElementById(`light-canvas-${currentStage}`);
+    
+    if (!video || !canvas) {
+        console.error('❌ ビデオまたはキャンバス要素が見つかりません');
+        return;
+    }
+    
+    const ctx = canvas.getContext('2d');
+    canvas.width = 160; // 小さいサイズで処理速度向上
+    canvas.height = 120;
+    
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    
+    // 平均明度を計算
+    let brightness = 0;
+    for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        // 明度計算（RGB to YUV変換の Y値）
+        brightness += (0.299 * r + 0.587 * g + 0.114 * b);
+    }
+    
+    brightness = brightness / (canvas.width * canvas.height);
+    
+    // UI更新
+    const lightCircle = document.getElementById(`light-circle-${currentStage}`);
+    const lightValue = document.getElementById(`light-value-${currentStage}`);
+    const lightIndicator = document.getElementById(`light-level-indicator-${currentStage}`);
+    
+    if (lightValue) {
+        lightValue.textContent = `明度: ${Math.round(brightness)}`;
+    }
+    
+    if (lightIndicator) {
+        const percentage = Math.min(100, brightness / 255 * 100);
+        lightIndicator.style.height = `${percentage}%`;
+        lightIndicator.style.backgroundColor = brightness > 127 ? '#ffd700' : '#4a4a4a';
+    }
+    
+    if (lightCircle) {
+        lightCircle.style.background = `radial-gradient(circle, rgba(255,255,255,${brightness/255}) 0%, rgba(0,0,0,0.8) 100%)`;
+    }
+    
+    // ステップ処理
+    processLightStep(brightness);
+    
+    // 次のフレーム
+    if (lightSensorActive) {
+        requestAnimationFrame(detectLightLevel);
+    }
+}
+
+// 光センサーステップ処理
+function processLightStep(brightness) {
+    const currentTime = Date.now();
+    const stepDuration = 3000; // 3秒
+    const timeElapsed = currentTime - lightStepStartTime;
+    
+    const statusEl = document.getElementById(`light-status-${currentStage}`);
+    const progressEl = document.getElementById(`light-progress-${lightStep}-${currentStage}`);
+    
+    let isCorrectCondition = false;
+    let stepName = '';
+    
+    // ステップ条件チェック
+    switch (lightStep) {
+        case 1: // 明るい場所
+            isCorrectCondition = brightness > 150;
+            stepName = '明るい場所';
+            break;
+        case 2: // 暗い場所
+            isCorrectCondition = brightness < 80;
+            stepName = '暗い場所';
+            break;
+        case 3: // 再び明るい場所
+            isCorrectCondition = brightness > 150;
+            stepName = '明るい場所';
+            break;
+    }
+    
+    if (isCorrectCondition) {
+        // 正しい条件を満たしている
+        const progress = Math.min(100, (timeElapsed / stepDuration) * 100);
+        
+        if (progressEl) {
+            progressEl.style.width = `${progress}%`;
+        }
+        
+        if (statusEl) {
+            const remaining = Math.max(0, (stepDuration - timeElapsed) / 1000);
+            statusEl.textContent = `${stepName}で維持中... 残り${remaining.toFixed(1)}秒`;
+            statusEl.style.color = '#4CAF50';
+        }
+        
+        // ステップ完了チェック
+        if (timeElapsed >= stepDuration) {
+            lightStep++;
+            lightStepStartTime = currentTime;
+            
+            if (lightStep > 3) {
+                // 全ステップ完了
+                lightSensorComplete();
+            } else {
+                // 次のステップへ
+                const nextStepName = lightStep === 2 ? '暗い場所' : '明るい場所';
+                if (statusEl) {
+                    statusEl.textContent = `ステップ${lightStep-1}完了！次は${nextStepName}に移動してください`;
+                    statusEl.style.color = '#2196F3';
+                }
+            }
+        }
+    } else {
+        // 条件を満たしていない
+        lightStepStartTime = currentTime; // タイマーリセット
+        
+        if (progressEl) {
+            progressEl.style.width = '0%';
+        }
+        
+        if (statusEl) {
+            statusEl.textContent = `${stepName}に移動してください（現在の明度: ${Math.round(brightness)}）`;
+            statusEl.style.color = '#ff9800';
+        }
+    }
+}
+
+// 光センサーチャレンジ完了
+function lightSensorComplete() {
+    console.log('🎉 光センサーチャレンジ完了！');
+    
+    stopLightSensor();
+    
+    const statusEl = document.getElementById(`light-status-${currentStage}`);
+    if (statusEl) {
+        statusEl.textContent = '🎉 光センサーチャレンジ完了！';
+        statusEl.style.color = '#4CAF50';
+    }
+    
+    setTimeout(() => {
+        stageComplete('ステージ7クリア！\n光センサーチャレンジを完了しました！');
+    }, 2000);
+}

@@ -969,6 +969,155 @@ header h1 {
     }
 }
 
+/* ==================== 光センサーステージ スタイル ==================== */
+
+.light-display {
+    text-align: center;
+}
+
+.light-sensor-visual {
+    margin-bottom: 2rem;
+}
+
+.light-circle {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    border: 2px solid #333333;
+    margin: 0 auto 1rem;
+    position: relative;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.8) 100%);
+    overflow: hidden;
+}
+
+.light-level-indicator {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 0%;
+    background-color: #4a4a4a;
+    transition: height 0.2s ease, background-color 0.2s ease;
+    border-radius: 10px 10px 0 0;
+}
+
+.light-value {
+    font-family: 'Courier New', monospace;
+    font-size: 1.1rem;
+    color: #ffffff;
+    margin-bottom: 1.5rem;
+}
+
+.light-instructions {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    border-left: 3px solid #666666;
+}
+
+.light-instructions p {
+    margin: 0.3rem 0;
+    font-size: 0.9rem;
+    color: #cccccc;
+}
+
+.light-controls {
+    margin-bottom: 1.5rem;
+}
+
+.light-controls button {
+    margin: 0 0.5rem;
+}
+
+.light-progress {
+    margin-bottom: 1.5rem;
+}
+
+.light-step {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.step-icon {
+    font-size: 1.5rem;
+    margin-right: 1rem;
+    min-width: 2rem;
+}
+
+.step-text {
+    flex: 1;
+    font-size: 0.9rem;
+    color: #cccccc;
+}
+
+.step-progress {
+    width: 100px;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    margin-left: 1rem;
+    overflow: hidden;
+}
+
+.step-progress::after {
+    content: '';
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #4CAF50 0%, #8BC34A 100%);
+    transition: width 0.3s ease;
+}
+
+.light-status {
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #ffffff;
+    text-align: center;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* モバイル対応 */
+@media (max-width: 768px) {
+    .light-circle {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .light-instructions {
+        padding: 0.75rem;
+        font-size: 0.85rem;
+    }
+    
+    .light-step {
+        padding: 0.4rem;
+    }
+    
+    .step-icon {
+        font-size: 1.2rem;
+        margin-right: 0.75rem;
+    }
+    
+    .step-text {
+        font-size: 0.8rem;
+    }
+    
+    .step-progress {
+        width: 80px;
+        height: 6px;
+    }
+}
+
 /* ==================== デバッグパネル スタイル ==================== */
 
 #debug-panel {
