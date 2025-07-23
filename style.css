@@ -483,6 +483,16 @@ header h1 {
     .morse-table-row span {
         text-align: left;
     }
+    
+    .morse-visual {
+        width: 80px;
+        height: 80px;
+        font-size: 1.5rem;
+    }
+    
+    .morse-visual.letter {
+        font-size: 1.2rem;
+    }
 }
 
 /* タッチデバイス用の改善 */
@@ -716,6 +726,74 @@ header h1 {
     margin-bottom: 1.5rem;
 }
 
+.morse-visual-container {
+    margin: 2rem 0;
+    text-align: center;
+}
+
+.morse-visual {
+    width: 100px;
+    height: 100px;
+    border: 2px solid #333333;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #666666;
+    background: transparent;
+    transition: all 0.3s ease;
+}
+
+.morse-visual.active {
+    border-color: #ffffff;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.morse-visual.dot {
+    animation: dotPulse 0.3s ease-out;
+}
+
+.morse-visual.dash {
+    animation: dashPulse 0.6s ease-out;
+}
+
+.morse-visual.letter {
+    border-color: #999999;
+    color: #999999;
+    font-size: 1.5rem;
+    animation: letterFade 0.5s ease-out;
+}
+
+@keyframes dotPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); background: rgba(255, 255, 255, 0.2); }
+    100% { transform: scale(1); }
+}
+
+@keyframes dashPulse {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.15); background: rgba(255, 255, 255, 0.3); }
+    70% { transform: scale(1.15); background: rgba(255, 255, 255, 0.3); }
+    100% { transform: scale(1); }
+}
+
+@keyframes letterFade {
+    0% { opacity: 0.3; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+
+.morse-visual-label {
+    font-size: 0.75rem;
+    color: #666666;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
 .morse-status {
     color: #999999;
     font-size: 0.9rem;
@@ -878,5 +956,15 @@ header h1 {
     
     .morse-help {
         margin-top: 2rem;
+    }
+    
+    .morse-visual {
+        width: 70px;
+        height: 70px;
+        font-size: 1.3rem;
+    }
+    
+    .morse-visual.letter {
+        font-size: 1rem;
     }
 } 

@@ -45,14 +45,45 @@ const morsePatterns = {
     '6': '-....', '7': '--...', '8': '---..', '9': '----.', '0': '-----'
 };
 
-// ステージ6用の単語リスト
-const morseWords = ['SOS', 'HELP', 'LOVE', 'GAME', 'CODE', 'TECH', 'WAVE'];
+// ステージ6用の単語リスト（短くて分かりやすい単語）
+const morseWords = ['SOS', 'HI', 'OK', 'GO', 'YES', 'NO', 'UP'];
 
 // バイブレーション設定
-const VIBRATION_SHORT = 200;  // 短点（ドット）
-const VIBRATION_LONG = 600;   // 長点（ダッシュ）
-const VIBRATION_PAUSE = 300;  // 文字間の休止
-const VIBRATION_WORD_PAUSE = 1000; // 単語間の休止
+const VIBRATION_SHORT = 150;  // 短点（ドット）
+const VIBRATION_LONG = 450;   // 長点（ダッシュ）
+const VIBRATION_PAUSE = 150;  // 信号間の休止
+const VIBRATION_LETTER_PAUSE = 300;  // 文字間の休止
+const VIBRATION_WORD_PAUSE = 800; // 単語間の休止
+
+// クロスブラウザ対応のバイブレーション関数
+function performVibration(duration) {
+    try {
+        // 標準的な方法
+        if (navigator.vibrate) {
+            const result = navigator.vibrate(duration);
+            console.log(`バイブレーション実行 (${duration}ms):`, result);
+            return result;
+        }
+        // Webkit対応
+        else if (navigator.webkitVibrate) {
+            const result = navigator.webkitVibrate(duration);
+            console.log(`Webkit バイブレーション実行 (${duration}ms):`, result);
+            return result;
+        }
+        // Mozilla対応
+        else if (navigator.mozVibrate) {
+            const result = navigator.mozVibrate(duration);
+            console.log(`Mozilla バイブレーション実行 (${duration}ms):`, result);
+            return result;
+        }
+        
+        console.warn('バイブレーション機能が見つかりません');
+        return false;
+    } catch (error) {
+        console.error('バイブレーション実行エラー:', error);
+        return false;
+    }
+}
 
 // DOM要素の取得（グローバル変数として保持）
 let stageInfo, permissionModal, successModal, requestPermissionBtn, nextStageBtn, tutorialNextBtn;
@@ -209,6 +240,25 @@ function initGame() {
         // バイブレーション機能チェック
         const vibrationSupported = checkVibrationSupport();
         console.log('📳 バイブレーション機能サポート:', vibrationSupported);
+        
+        // バイブレーション非対応時のUIメッセージ
+        setTimeout(() => {
+            if (!vibrationSupported) {
+                const morseStatus = document.getElementById('morse-status');
+                if (morseStatus) {
+                    morseStatus.innerHTML = `
+                        ⚠️ バイブレーション機能が利用できません<br>
+                        視覚的フィードバックでモールス信号を確認してください
+                    `;
+                    morseStatus.style.color = '#ff6b6b';
+                }
+                
+                const playButton = document.getElementById('play-morse-btn');
+                if (playButton) {
+                    playButton.textContent = '👁️ 視覚的モールス信号を再生';
+                }
+            }
+        }, 1000);
         
         // 環境情報をログ出力
         console.log('🌐 環境情報:');
@@ -802,69 +852,198 @@ function handleStage6Logic() {
 
 // バイブレーション機能チェック
 function checkVibrationSupport() {
-    if (!navigator.vibrate) {
-        console.warn('バイブレーション機能はサポートされていません');
+    console.log('=== バイブレーション機能チェック ===');
+    console.log('navigator.vibrate存在:', 'vibrate' in navigator);
+    console.log('User Agent:', navigator.userAgent);
+    console.log('Platform:', navigator.platform);
+    console.log('Protocol:', location.protocol);
+    
+    // 複数の方法でバイブレーション機能をチェック
+    const hasVibrate = 'vibrate' in navigator;
+    const hasWebkitVibrate = 'webkitVibrate' in navigator;
+    const hasMozVibrate = 'mozVibrate' in navigator;
+    
+    console.log('navigator.vibrate:', hasVibrate);
+    console.log('navigator.webkitVibrate:', hasWebkitVibrate);
+    console.log('navigator.mozVibrate:', hasMozVibrate);
+    
+    if (!hasVibrate && !hasWebkitVibrate && !hasMozVibrate) {
+        console.warn('❌ バイブレーション機能はサポートされていません');
         return false;
     }
-    return true;
+    
+    // テストバイブレーション
+    try {
+        const testResult = navigator.vibrate(100);
+        console.log('テストバイブレーション結果:', testResult);
+        console.log('✅ バイブレーション機能が利用可能です');
+        return true;
+    } catch (error) {
+        console.error('❌ バイブレーションテストエラー:', error);
+        return false;
+    }
 }
 
-// モールス信号をバイブレーションで再生
+// 視覚的フィードバック要素を更新
+function updateVisualFeedback(type, letter = '') {
+    const morseVisual = document.getElementById('morse-visual');
+    if (!morseVisual) return;
+    
+    switch (type) {
+        case 'dot':
+            morseVisual.textContent = '●';
+            morseVisual.className = 'morse-visual active dot';
+            break;
+        case 'dash':
+            morseVisual.textContent = '━';
+            morseVisual.className = 'morse-visual active dash';
+            break;
+        case 'letter':
+            morseVisual.textContent = letter;
+            morseVisual.className = 'morse-visual letter';
+            break;
+        case 'pause':
+            morseVisual.textContent = '・';
+            morseVisual.className = 'morse-visual pause';
+            break;
+        case 'clear':
+        default:
+            morseVisual.textContent = '';
+            morseVisual.className = 'morse-visual';
+    }
+}
+
+// 改良されたモールス信号再生機能
 async function playMorseVibration(word) {
-    if (!checkVibrationSupport() || isPlayingMorse) return;
+    console.log('🎵 モールス信号再生開始:', word);
+    
+    if (!checkVibrationSupport()) {
+        console.warn('⚠️ バイブレーション非対応 - 視覚的再生のみ');
+        await playMorseVisualOnly(word);
+        return;
+    }
+    
+    if (isPlayingMorse) {
+        console.log('⏸️ 既に再生中のため停止');
+        return;
+    }
     
     isPlayingMorse = true;
     currentMorseWord = word;
-    currentMorsePattern = [];
-    
-    console.log('モールス信号再生開始:', word);
     
     // UI更新
     const morseStatus = document.getElementById('morse-status');
     const playButton = document.getElementById('play-morse-btn');
     
-    if (morseStatus) morseStatus.textContent = `再生中: ${word}`;
-    if (playButton) playButton.disabled = true;
+    if (morseStatus) morseStatus.textContent = `🎵 再生中: ${word}`;
+    if (playButton) {
+        playButton.disabled = true;
+        playButton.textContent = '再生中...';
+    }
+    
+    try {
+        // 単語全体のバイブレーションパターンを生成
+        const vibrationPattern = [];
+        const visualPattern = [];
+        
+        for (let i = 0; i < word.length; i++) {
+            const letter = word[i];
+            const pattern = morsePatterns[letter];
+            
+            if (pattern) {
+                console.log(`文字 "${letter}": ${pattern}`);
+                
+                for (let j = 0; j < pattern.length; j++) {
+                    const signal = pattern[j];
+                    
+                    if (signal === '.') {
+                        vibrationPattern.push(VIBRATION_SHORT, VIBRATION_PAUSE);
+                        visualPattern.push({type: 'dot', duration: VIBRATION_SHORT + VIBRATION_PAUSE});
+                    } else if (signal === '-') {
+                        vibrationPattern.push(VIBRATION_LONG, VIBRATION_PAUSE);
+                        visualPattern.push({type: 'dash', duration: VIBRATION_LONG + VIBRATION_PAUSE});
+                    }
+                }
+                
+                // 文字間の休止（最後の文字以外）
+                if (i < word.length - 1) {
+                    vibrationPattern.push(VIBRATION_LETTER_PAUSE);
+                    visualPattern.push({type: 'letter', letter: letter, duration: VIBRATION_LETTER_PAUSE});
+                }
+            }
+        }
+        
+        console.log('バイブレーションパターン:', vibrationPattern);
+        
+        // パターン全体を一度に再生（より確実）
+        const vibrationResult = performVibration(vibrationPattern);
+        console.log('一括バイブレーション結果:', vibrationResult);
+        
+        // 視覚的フィードバックを並行して実行
+        playVisualPattern(visualPattern);
+        
+        // 再生時間を計算
+        const totalDuration = vibrationPattern.reduce((sum, duration) => sum + duration, 0);
+        await sleep(totalDuration + 500); // 少し余裕を持たせる
+        
+    } catch (error) {
+        console.error('❌ モールス信号再生エラー:', error);
+        // エラー時は視覚的再生のみ
+        await playMorseVisualOnly(word);
+    }
+    
+    isPlayingMorse = false;
+    
+    // UI更新
+    if (morseStatus) morseStatus.textContent = `✅ 再生完了！ "${word}" を入力してください`;
+    if (playButton) {
+        playButton.disabled = false;
+        playButton.textContent = '📳 モールス信号を再生';
+    }
+    updateVisualFeedback('clear');
+    
+    console.log('✅ モールス信号再生完了');
+}
+
+// バイブレーション非対応時の視覚的再生
+async function playMorseVisualOnly(word) {
+    console.log('👁️ 視覚的モールス信号再生:', word);
+    
+    const morseStatus = document.getElementById('morse-status');
+    if (morseStatus) morseStatus.textContent = `👁️ 視覚再生中: ${word}`;
     
     for (let i = 0; i < word.length; i++) {
         const letter = word[i];
         const pattern = morsePatterns[letter];
         
         if (pattern) {
-            currentMorsePattern.push(pattern);
-            
-            // 文字のモールス信号を再生
             for (let j = 0; j < pattern.length; j++) {
                 const signal = pattern[j];
                 
                 if (signal === '.') {
-                    // 短点
-                    navigator.vibrate(VIBRATION_SHORT);
-                    await sleep(VIBRATION_SHORT + 100);
+                    updateVisualFeedback('dot');
+                    await sleep(VIBRATION_SHORT);
                 } else if (signal === '-') {
-                    // 長点
-                    navigator.vibrate(VIBRATION_LONG);
-                    await sleep(VIBRATION_LONG + 100);
+                    updateVisualFeedback('dash');
+                    await sleep(VIBRATION_LONG);
                 }
                 
-                // 信号間の短い休止
-                await sleep(100);
-            }
-            
-            // 文字間の休止
-            if (i < word.length - 1) {
+                updateVisualFeedback('pause');
                 await sleep(VIBRATION_PAUSE);
             }
+            
+            updateVisualFeedback('letter', letter);
+            await sleep(VIBRATION_LETTER_PAUSE);
         }
     }
-    
-    isPlayingMorse = false;
-    
-    // UI更新
-    if (morseStatus) morseStatus.textContent = `再生完了！ "${word}" を入力してください`;
-    if (playButton) playButton.disabled = false;
-    
-    console.log('モールス信号再生完了');
+}
+
+// 視覚的パターン再生
+async function playVisualPattern(pattern) {
+    for (const item of pattern) {
+        updateVisualFeedback(item.type, item.letter);
+        await sleep(item.duration);
+    }
 }
 
 // スリープ関数
@@ -881,35 +1060,58 @@ function generateNewMorseWord() {
 // プレイヤーの入力をチェック
 function checkMorseInput() {
     const inputElement = document.getElementById('morse-input');
-    const submitButton = document.getElementById('submit-morse-btn');
     const hintElement = document.getElementById('morse-hint');
     
     if (!inputElement) return;
     
     const input = inputElement.value.toUpperCase().trim();
     
+    console.log('📝 入力チェック:', input, 'vs', currentMorseWord);
+    
     if (input === currentMorseWord) {
         // 正解
         inputElement.style.borderColor = '#ffffff';
-        if (hintElement) hintElement.textContent = '🎉 正解！';
+        inputElement.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+        if (hintElement) {
+            hintElement.textContent = '🎉 正解！素晴らしい！';
+            hintElement.style.color = '#ffffff';
+        }
+        
+        // 正解時のバイブレーション
+        if (checkVibrationSupport()) {
+            performVibration([100, 100, 100, 100, 100]); // 成功パターン
+        }
         
         setTimeout(() => {
-            stageComplete('ステージ6クリア！\nモールス信号を解読できました！');
+            stageComplete('ステージ6クリア！\nモールス信号を解読できました！\n🎊 おめでとうございます！');
         }, 1500);
     } else if (input.length > 0) {
-        // 不正解（入力中）
-        inputElement.style.borderColor = '#ff6b6b';
-        if (hintElement) {
-            if (currentMorseWord.startsWith(input)) {
-                hintElement.textContent = `良い感じです！続けてください... (${input.length}/${currentMorseWord.length})`;
-            } else {
-                hintElement.textContent = '違います。もう一度聞いてみましょう。';
+        // 入力中の判定
+        if (currentMorseWord.startsWith(input)) {
+            // 部分一致
+            inputElement.style.borderColor = '#999999';
+            inputElement.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+            if (hintElement) {
+                hintElement.textContent = `👍 良い感じです！続けてください... (${input.length}/${currentMorseWord.length}文字)`;
+                hintElement.style.color = '#999999';
+            }
+        } else {
+            // 不一致
+            inputElement.style.borderColor = '#ff6b6b';
+            inputElement.style.backgroundColor = 'rgba(255, 107, 107, 0.1)';
+            if (hintElement) {
+                hintElement.textContent = `❌ 違います。目標: ${currentMorseWord.length}文字の英単語`;
+                hintElement.style.color = '#ff6b6b';
             }
         }
     } else {
         // 空の入力
         inputElement.style.borderColor = '#333333';
-        if (hintElement) hintElement.textContent = '';
+        inputElement.style.backgroundColor = 'transparent';
+        if (hintElement) {
+            hintElement.textContent = `💡 ヒント: ${currentMorseWord.length}文字の英単語です`;
+            hintElement.style.color = '#666666';
+        }
     }
 }
 
