@@ -868,12 +868,21 @@ function handleStage5Logic() {
         if (allConditionsMet) {
             finalStatus.textContent = '🎉 全ての条件をクリア！';
             finalStatus.className = 'final-status success';
-            setTimeout(() => {
-                stageComplete('ステージ5クリア！\n全ての条件を満たしました！');
-            }, 2000);
+            
+            // 重複実行を防ぐためのフラグチェック
+            if (!window.stage5Completed) {
+                window.stage5Completed = true;
+                console.log('🎯 ステージ5の全条件をクリア！2秒後にクリア処理を実行');
+                setTimeout(() => {
+                    console.log('⏰ ステージ5クリア処理を実行中...');
+                    stageComplete('ステージ5クリア！\n全ての条件を満たしました！');
+                    window.stage5Completed = false; // フラグをリセット
+                }, 2000);
+            }
         } else {
             finalStatus.textContent = '条件を満たしてください';
             finalStatus.className = 'final-status';
+            window.stage5Completed = false; // 条件未達成時はフラグをリセット
         }
     }
 }
@@ -1179,7 +1188,8 @@ function getDirectionFromHeading(heading) {
 
 // ステージクリア
 function stageComplete(message) {
-    console.log('🎉 ステージクリア:', message);
+    console.log(`🎉 ステージ${currentStage}クリア:`, message);
+    console.log(`📊 現在の状態: currentStage=${currentStage}, TOTAL_STAGES=${TOTAL_STAGES}`);
     
     // 成功メッセージ要素を取得（グローバル変数が失効している場合の対策）
     const successMessageEl = successMessage || document.getElementById('success-message');
@@ -1195,6 +1205,7 @@ function stageComplete(message) {
     if (successModalEl) {
         successModalEl.classList.add('active');
         console.log('✅ 成功モーダルを表示しました');
+        console.log('👆 「次のステージへ」ボタンを押してください');
     } else {
         console.error('❌ success-modal要素が見つかりません');
         // フォールバック: アラートで表示
@@ -1220,17 +1231,25 @@ function goToNextStage() {
     
     // 次のステージへ
     currentStage++;
+    console.log(`🎯 ステージ切り替え: ${currentStage - 1} → ${currentStage}`);
     
-    // ステージ6まで実装済み
-    if (currentStage > 6) {
+    // ステージ6まで実装済み（ステージ0〜6の7ステージ）
+    if (currentStage >= TOTAL_STAGES) {
+        console.log('🎉 全ステージクリア！ゲームを完了します');
         alert('🎉 すべてのステージをクリアしました！\nお疲れ様でした！');
         currentStage = 0; // リセット
+        console.log('🔄 ステージ0にリセットしました');
+    } else {
+        console.log(`✅ ステージ${currentStage}に進みます`);
     }
     
     // 新しいステージを表示
     const nextStageEl = document.getElementById(`stage-${currentStage}`);
     if (nextStageEl) {
         nextStageEl.classList.add('active');
+        console.log(`✅ ステージ${currentStage}の要素を表示しました`);
+    } else {
+        console.error(`❌ stage-${currentStage}の要素が見つかりません`);
     }
     
     // ステージ情報更新
@@ -1366,14 +1385,22 @@ function resetStageState() {
         console.log('新しいモールス信号の単語:', currentMorseWord);
     }
     
-    // 新しいステージ開始時にシェイクカウントをリセット（ステージ5は除く）
+    // ステージ5の完了フラグをリセット
+    if (window.stage5Completed) {
+        window.stage5Completed = false;
+        console.log('🔄 ステージ5完了フラグをリセット');
+    }
+    
+    // 新しいステージ開始時にシェイクカウントをリセット
     if (currentStage === 3) {
         shakeCount = 0;
         shakeDetected = false;
+        console.log('🔄 ステージ3: シェイクカウントをリセット');
     } else if (currentStage === 5) {
         // ステージ5ではシェイクカウントをリセット
         shakeCount = 0;
         shakeDetected = false;
+        console.log('🔄 ステージ5: シェイクカウントをリセット');
     }
 }
 
