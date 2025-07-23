@@ -104,8 +104,28 @@ function initDOMElements() {
         nextStageBtn = document.getElementById('next-stage-btn');
         tutorialNextBtn = document.getElementById('tutorial-next');
         
-        console.log('🔧 DOM要素を再取得しました');
-        return true;
+        // 重要な要素の存在確認とログ出力
+        const elements = [
+            { name: 'stageInfo', element: stageInfo },
+            { name: 'permissionModal', element: permissionModal },
+            { name: 'successModal', element: successModal },
+            { name: 'requestPermissionBtn', element: requestPermissionBtn },
+            { name: 'nextStageBtn', element: nextStageBtn },
+            { name: 'tutorialNextBtn', element: tutorialNextBtn }
+        ];
+        
+        let allFound = true;
+        elements.forEach(({ name, element }) => {
+            if (element) {
+                console.log(`✅ ${name}: 要素が見つかりました`);
+            } else {
+                console.error(`❌ ${name}: 要素が見つかりません`);
+                allFound = false;
+            }
+        });
+        
+        console.log('🔧 DOM要素取得完了:', allFound ? '全要素OK' : '一部要素が不足');
+        return allFound;
     } catch (error) {
         console.error('❌ DOM要素取得エラー:', error);
         return false;
@@ -123,15 +143,9 @@ const compassNeedle = document.getElementById('compass-needle');
 const holdProgress = document.getElementById('hold-progress');
 const holdTimerEl = document.getElementById('hold-timer');
 
-// ステージ2要素
-const currentDirectionEl = document.getElementById('current-direction');
-const directionNeedle = document.getElementById('direction-needle');
-const directionCompassDisplay = document.getElementById('direction-compass-display');
-const accuracyIndicator = document.getElementById('accuracy-indicator');
-const accuracyText = document.getElementById('accuracy-text');
-
-// 成功メッセージ要素
-const successMessage = document.getElementById('success-message');
+// グローバル変数として各ステージで使用される要素を宣言
+// 実際の取得は各関数内で動的に行う
+let directionNeedle, directionCompassDisplay, successMessage;
 
 // ゲーム初期化
 document.addEventListener('DOMContentLoaded', function() {
@@ -239,6 +253,9 @@ function initGame() {
         // ステージ表示を更新
         updateStageDisplay();
         
+        // 初期ステージの表示設定
+        initializeStageDisplay();
+        
         // ステージ6の初期化
         currentMorseWord = generateNewMorseWord();
         console.log('📡 初期モールス信号の単語:', currentMorseWord);
@@ -272,6 +289,9 @@ function initGame() {
         console.log('- Protocol:', window.location.protocol);
         console.log('- User Agent:', navigator.userAgent.substring(0, 50) + '...');
         console.log('- Vibration Support:', vibrationSupported);
+        
+        // センサー許可状況をチェック
+        checkSensorPermissionStatus();
         
         console.log('✅ ゲーム初期化完了');
         
@@ -540,19 +560,23 @@ function updateSensorDisplaySmooth() {
 // 針の位置更新
 function updateNeedlePositions() {
     // ステージ1のコンパス針
-    if (compassNeedle) {
-        compassNeedle.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
+    const compassNeedleEl = document.getElementById('compass-needle');
+    const compassDisplayEl = document.getElementById('compass-display');
+    if (compassNeedleEl) {
+        compassNeedleEl.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
     }
-    if (compassDisplay) {
-        compassDisplay.textContent = `${Math.round(smoothCompassHeading)}°`;
+    if (compassDisplayEl) {
+        compassDisplayEl.textContent = `${Math.round(smoothCompassHeading)}°`;
     }
     
     // ステージ2の方向針
-    if (directionNeedle) {
-        directionNeedle.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
+    const directionNeedleEl = document.getElementById('direction-needle');
+    const directionCompassDisplayEl = document.getElementById('direction-compass-display');
+    if (directionNeedleEl) {
+        directionNeedleEl.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
     }
-    if (directionCompassDisplay) {
-        directionCompassDisplay.textContent = `${Math.round(smoothCompassHeading)}°`;
+    if (directionCompassDisplayEl) {
+        directionCompassDisplayEl.textContent = `${Math.round(smoothCompassHeading)}°`;
     }
     
     // ステージ4の水平バブル
@@ -688,37 +712,41 @@ function stopHoldTimer() {
     if (holdTimerEl) holdTimerEl.textContent = '0.0秒維持中';
 }
 
-// ステージ2: 東北を向く
+// ステージ2: 南西を向く
 function handleStage2Logic() {
     // 現在の方角を計算
     const direction = getDirectionFromHeading(smoothCompassHeading);
-    if (currentDirectionEl) currentDirectionEl.textContent = direction;
+    const currentDirectionElement = document.getElementById('current-direction');
+    if (currentDirectionElement) currentDirectionElement.textContent = direction;
     
-    // 東北（45度）に近いかチェック
-    const target = 45; // 東北は45度
+    // 南西（225度）に近いかチェック
+    const target = 225; // 南西は225度
     const tolerance = 10; // 許容範囲を少し広く
     
     // 最短角度差を使用
     const difference = Math.abs(getShortestAngleDifference(smoothCompassHeading, target));
     
     // 精度表示更新
+    const accuracyIndicatorElement = document.getElementById('accuracy-indicator');
+    const accuracyTextElement = document.getElementById('accuracy-text');
+    
     if (difference <= tolerance) {
-        accuracyIndicator.classList.add('success');
+        if (accuracyIndicatorElement) accuracyIndicatorElement.classList.add('success');
         if (difference <= 5) {
-            accuracyText.textContent = '完璧！東北を向いています！';
+            if (accuracyTextElement) accuracyTextElement.textContent = '完璧！南西を向いています！';
             // 2秒後にクリア
             setTimeout(() => {
-                stageComplete('ステージ2クリア！\n東北の方角を見つけました！');
+                stageComplete('ステージ2クリア！\n南西の方角を見つけました！');
             }, 2000);
         } else {
-            accuracyText.textContent = '良い感じです！もう少し調整してください。';
+            if (accuracyTextElement) accuracyTextElement.textContent = '良い感じです！もう少し調整してください。';
         }
     } else {
-        accuracyIndicator.classList.remove('success');
+        if (accuracyIndicatorElement) accuracyIndicatorElement.classList.remove('success');
         if (difference <= 20) {
-            accuracyText.textContent = '近づいています！';
+            if (accuracyTextElement) accuracyTextElement.textContent = '近づいています！';
         } else {
-            accuracyText.textContent = '方角を調整してください';
+            if (accuracyTextElement) accuracyTextElement.textContent = '方角を調整してください';
         }
     }
 }
@@ -1151,13 +1179,38 @@ function getDirectionFromHeading(heading) {
 
 // ステージクリア
 function stageComplete(message) {
-    successMessage.textContent = message;
-    successModal.classList.add('active');
+    console.log('🎉 ステージクリア:', message);
+    
+    // 成功メッセージ要素を取得（グローバル変数が失効している場合の対策）
+    const successMessageEl = successMessage || document.getElementById('success-message');
+    const successModalEl = successModal || document.getElementById('success-modal');
+    
+    if (successMessageEl) {
+        successMessageEl.textContent = message;
+        console.log('✅ 成功メッセージを設定しました');
+    } else {
+        console.error('❌ success-message要素が見つかりません');
+    }
+    
+    if (successModalEl) {
+        successModalEl.classList.add('active');
+        console.log('✅ 成功モーダルを表示しました');
+    } else {
+        console.error('❌ success-modal要素が見つかりません');
+        // フォールバック: アラートで表示
+        alert(message);
+    }
 }
 
 // 次のステージへ進む
 function goToNextStage() {
-    successModal.classList.remove('active');
+    console.log('🎯 次のステージへ進みます');
+    
+    // 成功モーダルを閉じる
+    const successModalEl = successModal || document.getElementById('success-modal');
+    if (successModalEl) {
+        successModalEl.classList.remove('active');
+    }
     
     // 現在のステージを非表示
     const currentStageEl = document.getElementById(`stage-${currentStage}`);
@@ -1194,8 +1247,70 @@ function goToNextStage() {
 
 // ステージ表示更新
 function updateStageDisplay() {
-    if (stageInfo) {
-        stageInfo.textContent = `ステージ ${currentStage}`;
+    const stageInfoEl = stageInfo || document.getElementById('current-stage');
+    if (stageInfoEl) {
+        stageInfoEl.textContent = `ステージ ${currentStage}`;
+        console.log(`📊 ステージ表示を更新: ステージ ${currentStage}`);
+    } else {
+        console.error('❌ current-stage要素が見つかりません');
+    }
+}
+
+// 初期ステージ表示設定
+function initializeStageDisplay() {
+    console.log('🎯 初期ステージ表示を設定中...');
+    
+    // すべてのステージを非表示にする
+    for (let i = 0; i < TOTAL_STAGES; i++) {
+        const stageEl = document.getElementById(`stage-${i}`);
+        if (stageEl) {
+            stageEl.classList.remove('active');
+        }
+    }
+    
+    // 現在のステージ（初期値はステージ0）を表示
+    const currentStageEl = document.getElementById(`stage-${currentStage}`);
+    if (currentStageEl) {
+        currentStageEl.classList.add('active');
+        console.log(`✅ ステージ${currentStage}を表示しました`);
+    } else {
+        console.error(`❌ ステージ${currentStage}の要素が見つかりません`);
+    }
+    
+    // ステージ状態をリセット
+    resetStageState();
+}
+
+// センサー許可状況をチェック
+function checkSensorPermissionStatus() {
+    console.log('🔍 センサー許可状況をチェック中...');
+    
+    // センサーがすでに許可されているかチェック
+    if (permissionGranted) {
+        console.log('✅ センサー許可済み');
+        // 許可モーダルを非表示
+        if (permissionModal) {
+            permissionModal.classList.remove('active');
+        }
+        return;
+    }
+    
+    // iOS 13+のデバイスかチェック
+    const isIOS13Plus = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
+                       'DeviceOrientationEvent' in window && 
+                       typeof DeviceOrientationEvent.requestPermission === 'function';
+    
+    // HTTPS接続でない場合の警告
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+        console.warn('⚠️ HTTPS接続でないため、センサーアクセスが制限される可能性があります');
+    }
+    
+    // 許可モーダルを表示
+    if (permissionModal) {
+        permissionModal.classList.add('active');
+        console.log('📱 センサー許可モーダルを表示しました');
+    } else {
+        console.error('❌ 許可モーダル要素が見つかりません');
     }
 }
 
@@ -1207,11 +1322,13 @@ function resetStageState() {
     holdTimer = 0;
     
     // ステージ2の状態リセット
-    if (accuracyIndicator) {
-        accuracyIndicator.classList.remove('success');
+    const accuracyIndicatorElement = document.getElementById('accuracy-indicator');
+    const accuracyTextElement = document.getElementById('accuracy-text');
+    if (accuracyIndicatorElement) {
+        accuracyIndicatorElement.classList.remove('success');
     }
-    if (accuracyText) {
-        accuracyText.textContent = '方角を調整してください';
+    if (accuracyTextElement) {
+        accuracyTextElement.textContent = '方角を調整してください';
     }
     
     // ステージ3の状態リセット（シェイクカウンタはリセットしない）
