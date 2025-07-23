@@ -44,46 +44,92 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initGame() {
+    console.log('ゲームを初期化中...');
+    
+    // 要素の存在確認
+    console.log('DOM要素確認:');
+    console.log('- requestPermissionBtn:', !!requestPermissionBtn);
+    console.log('- permissionModal:', !!permissionModal);
+    console.log('- nextStageBtn:', !!nextStageBtn);
+    console.log('- tutorialNextBtn:', !!tutorialNextBtn);
+    
     // 許可ボタンのイベントリスナー
-    requestPermissionBtn.addEventListener('click', requestSensorPermission);
+    if (requestPermissionBtn) {
+        requestPermissionBtn.addEventListener('click', requestSensorPermission);
+        console.log('許可ボタンにイベントリスナーを追加');
+    } else {
+        console.error('許可ボタンが見つかりません');
+    }
     
     // 次のステージボタン
-    nextStageBtn.addEventListener('click', goToNextStage);
+    if (nextStageBtn) {
+        nextStageBtn.addEventListener('click', goToNextStage);
+        console.log('次のステージボタンにイベントリスナーを追加');
+    }
     
     // チュートリアル次へボタン
-    tutorialNextBtn.addEventListener('click', function() {
-        if (permissionGranted) {
-            goToNextStage();
-        } else {
-            alert('センサーへのアクセス許可が必要です。');
-        }
-    });
+    if (tutorialNextBtn) {
+        tutorialNextBtn.addEventListener('click', function() {
+            console.log('チュートリアル次へボタンクリック');
+            if (permissionGranted) {
+                goToNextStage();
+            } else {
+                alert('センサーへのアクセス許可が必要です。');
+            }
+        });
+        console.log('チュートリアル次へボタンにイベントリスナーを追加');
+    }
     
     updateStageDisplay();
+    console.log('ゲーム初期化完了');
 }
 
 // センサー許可要求
 async function requestSensorPermission() {
+    console.log('センサー許可を要求中...');
+    
     try {
+        // HTTPS環境チェック
+        if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+            alert('このゲームはHTTPS環境または localhost でのみ動作します。');
+            return;
+        }
+        
         // iOS 13+ 対応
         if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            console.log('iOS 13+のDeviceOrientationEvent.requestPermissionを使用');
             const permission = await DeviceOrientationEvent.requestPermission();
+            console.log('許可結果:', permission);
+            
             if (permission === 'granted') {
                 permissionGranted = true;
                 startSensorListening();
                 closePermissionModal();
+                console.log('センサー許可が承認されました');
             } else {
+                console.log('センサー許可が拒否されました');
                 alert('センサーへのアクセスが拒否されました。ゲームを正常に動作させるには許可が必要です。');
             }
         } else {
-            // Android や旧iOS
+            // Android や旧iOS - 直接開始
+            console.log('Android/旧iOS - 直接センサーリスニング開始');
             permissionGranted = true;
             startSensorListening();
             closePermissionModal();
+            
+            // センサーが利用可能かテスト
+            setTimeout(() => {
+                if (compassHeading === 0 && tiltX === 0 && tiltY === 0) {
+                    console.warn('センサー値が更新されていません。デバイスを少し動かしてみてください。');
+                    alert('センサーが動作していない可能性があります。デバイスを少し動かしてみてください。');
+                }
+            }, 3000);
         }
     } catch (error) {
         console.error('センサー許可エラー:', error);
+        
         // フォールバック: 許可なしで開始
+        console.log('フォールバック処理を実行');
         permissionGranted = true;
         startSensorListening();
         closePermissionModal();
@@ -91,29 +137,69 @@ async function requestSensorPermission() {
 }
 
 function closePermissionModal() {
-    permissionModal.classList.remove('active');
+    console.log('許可モーダルを閉じます');
+    if (permissionModal) {
+        permissionModal.classList.remove('active');
+        console.log('許可モーダルが閉じられました');
+    } else {
+        console.error('許可モーダル要素が見つかりません');
+    }
 }
 
 // センサーリスニング開始
 function startSensorListening() {
+    console.log('センサーリスニングを開始します');
+    
+    // 既存のイベントリスナーを削除（重複を防ぐ）
+    window.removeEventListener('deviceorientation', handleOrientation);
+    window.removeEventListener('devicemotion', handleMotion);
+    
     // デバイス方向イベント
     window.addEventListener('deviceorientation', handleOrientation);
+    console.log('deviceorientationイベントリスナーを追加');
     
     // デバイスモーションイベント（追加のセンサー情報用）
     window.addEventListener('devicemotion', handleMotion);
+    console.log('devicemotionイベントリスナーを追加');
+    
+    // テスト用のダミー値で動作確認
+    setTimeout(() => {
+        console.log('センサー値確認:', { compassHeading, tiltX, tiltY });
+    }, 1000);
 }
 
 // デバイス方向ハンドラー
 function handleOrientation(event) {
+    // デバッグ用：初回のイベント受信をログ
+    if (!window.firstOrientationReceived) {
+        console.log('初回デバイス方向イベント受信:', event);
+        window.firstOrientationReceived = true;
+    }
+    
     // コンパス値を取得（webkitCompassHeadingがあればそれを使用、なければalphaを使用）
-    let heading = event.webkitCompassHeading || (360 - (event.alpha || 0));
+    let heading = event.webkitCompassHeading;
+    
+    // iOSとAndroidでの処理の違いを考慮
+    if (heading === undefined || heading === null) {
+        heading = event.alpha;
+        if (heading !== null) {
+            // Androidの場合、alphaを使用して計算
+            heading = (360 - heading) % 360;
+        }
+    }
+    
+    // コンパス値が取得できない場合のフォールバック
+    if (heading === null || heading === undefined) {
+        console.warn('コンパス値を取得できません');
+        heading = 0;
+    }
     
     // 0-360の範囲に正規化
     compassHeading = Math.round((heading + 360) % 360);
     
     // 傾きの値を取得
-    tiltX = Math.round(event.beta || 0);  // 前後の傾き
-    tiltY = Math.round(event.gamma || 0); // 左右の傾き
+    tiltX = Math.round(event.beta || 0);  // 前後の傾き（X軸回転）
+    tiltY = Math.round(event.gamma || 0); // 左右の傾き（Y軸回転）
     
     // センサー値の表示更新
     updateSensorDisplay();
@@ -339,9 +425,24 @@ function resetStageState() {
 
 // デバッグ用: センサーサポート確認
 function checkSensorSupport() {
+    console.log('=== センサーサポート状況 ===');
     console.log('DeviceOrientationEvent supported:', 'DeviceOrientationEvent' in window);
     console.log('DeviceMotionEvent supported:', 'DeviceMotionEvent' in window);
     console.log('Permission API supported:', typeof DeviceOrientationEvent.requestPermission === 'function');
+    console.log('User Agent:', navigator.userAgent);
+    console.log('Protocol:', location.protocol);
+    console.log('Hostname:', location.hostname);
+    console.log('Is HTTPS or localhost:', location.protocol === 'https:' || location.hostname === 'localhost');
+    
+    // ブラウザ判定
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isAndroid = /Android/.test(navigator.userAgent);
+    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+    
+    console.log('iOS:', isIOS);
+    console.log('Android:', isAndroid);
+    console.log('Safari:', isSafari);
+    console.log('==================');
 }
 
 // エラーハンドリング
