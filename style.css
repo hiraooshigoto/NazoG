@@ -1,3 +1,6 @@
+/* フォント読み込み */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700&display=swap');
+
 /* リセットとベーススタイル */
 * {
     margin: 0;
@@ -6,12 +9,14 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'ヒラギノ角ゴ ProN W3', 'Hiragino Kaku Gothic ProN', Arial, Meiryo, sans-serif;
-    background: #f5f5f7;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    background: #0a0a0a;
     min-height: 100vh;
-    color: #1d1d1f;
+    color: #ffffff;
     overflow-x: hidden;
-    line-height: 1.6;
+    line-height: 1.5;
+    font-weight: 300;
+    letter-spacing: 0.02em;
 }
 
 /* ゲームコンテナ */
@@ -24,10 +29,9 @@ body {
 
 /* ヘッダー */
 header {
-    background: rgba(245, 245, 247, 0.8);
-    backdrop-filter: saturate(180%) blur(20px);
-    border-bottom: 0.5px solid rgba(0, 0, 0, 0.1);
-    padding: 1.5rem 1rem;
+    background: transparent;
+    border-bottom: 1px solid #222222;
+    padding: 2rem 1rem;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -35,20 +39,21 @@ header {
 
 header h1 {
     text-align: center;
-    color: #1d1d1f;
-    font-size: 1.375rem;
-    margin-bottom: 0.5rem;
-    font-weight: 600;
-    letter-spacing: -0.022em;
+    color: #ffffff;
+    font-size: 1.5rem;
+    margin-bottom: 0.75rem;
+    font-weight: 100;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
 }
 
 #stage-info {
     text-align: center;
-    color: #86868b;
-    font-weight: 400;
-    font-size: 0.875rem;
+    color: #666666;
+    font-weight: 300;
+    font-size: 0.75rem;
     text-transform: uppercase;
-    letter-spacing: 0.011em;
+    letter-spacing: 0.2em;
 }
 
 /* メインゲーム画面 */
@@ -79,45 +84,46 @@ header h1 {
 }
 
 .puzzle-content {
-    background: #ffffff;
-    border: none;
-    border-radius: 18px;
-    padding: 2.5rem;
+    background: transparent;
+    border: 1px solid #222222;
+    border-radius: 0;
+    padding: 3rem;
     text-align: center;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    max-width: 400px;
+    max-width: 450px;
     width: 100%;
 }
 
 .puzzle-content h2 {
-    color: #1d1d1f;
-    margin-bottom: 1.5rem;
+    color: #ffffff;
+    margin-bottom: 2rem;
     font-size: 1.75rem;
-    font-weight: 600;
-    letter-spacing: -0.022em;
+    font-weight: 100;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
 .puzzle-content p {
-    margin-bottom: 1.25rem;
-    line-height: 1.7;
-    color: #515154;
-    font-size: 1rem;
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+    color: #999999;
+    font-size: 0.9rem;
+    font-weight: 300;
 }
 
 /* センサー表示 */
 .sensor-display {
-    background: #f6f6f6;
-    border: none;
-    border-radius: 12px;
-    padding: 1.25rem;
-    margin: 2rem 0;
+    background: transparent;
+    border: 1px solid #333333;
+    border-radius: 0;
+    padding: 2rem;
+    margin: 3rem 0;
 }
 
 .sensor-item {
     display: flex;
     justify-content: space-between;
-    padding: 0.75rem 0;
-    border-bottom: 0.5px solid rgba(0, 0, 0, 0.1);
+    padding: 1rem 0;
+    border-bottom: 1px solid #333333;
 }
 
 .sensor-item:last-child {
@@ -125,16 +131,19 @@ header h1 {
 }
 
 .sensor-item span:first-child {
-    font-weight: 500;
-    color: #515154;
-    font-size: 0.9rem;
+    font-weight: 300;
+    color: #666666;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .sensor-item span:last-child {
-    color: #1d1d1f;
-    font-weight: 600;
+    color: #ffffff;
+    font-weight: 100;
     font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-    font-size: 0.9rem;
+    font-size: 1.1rem;
+    letter-spacing: 0.05em;
 }
 
 /* コンパス表示 */
@@ -143,39 +152,38 @@ header h1 {
 }
 
 .compass-circle {
-    width: 240px;
-    height: 240px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    width: 280px;
+    height: 280px;
+    border: 2px solid #333333;
     border-radius: 50%;
     position: relative;
-    margin: 0 auto 1.5rem;
-    background: #f6f6f6;
+    margin: 0 auto 2rem;
+    background: transparent;
 }
 
 .compass-needle {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 2px;
-    height: 100px;
-    background: #007aff;
+    width: 1px;
+    height: 120px;
+    background: #ffffff;
     transform-origin: bottom center;
     transform: translate(-50%, -100%) rotate(0deg);
-    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    border-radius: 1px;
+    transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
 .compass-needle::before {
     content: '';
     position: absolute;
-    top: -4px;
+    top: -3px;
     left: 50%;
     transform: translateX(-50%);
     width: 0;
     height: 0;
-    border-left: 3px solid transparent;
-    border-right: 3px solid transparent;
-    border-bottom: 6px solid #007aff;
+    border-left: 2px solid transparent;
+    border-right: 2px solid transparent;
+    border-bottom: 6px solid #ffffff;
 }
 
 .compass-directions {
@@ -186,22 +194,25 @@ header h1 {
 
 .direction {
     position: absolute;
-    font-weight: 500;
-    font-size: 0.875rem;
-    color: #86868b;
+    font-weight: 100;
+    font-size: 0.7rem;
+    color: #555555;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
 }
 
-.direction.north { top: 8px; left: 50%; transform: translateX(-50%); }
-.direction.east { right: 8px; top: 50%; transform: translateY(-50%); }
-.direction.south { bottom: 8px; left: 50%; transform: translateX(-50%); }
-.direction.west { left: 8px; top: 50%; transform: translateY(-50%); }
+.direction.north { top: 12px; left: 50%; transform: translateX(-50%); }
+.direction.east { right: 12px; top: 50%; transform: translateY(-50%); }
+.direction.south { bottom: 12px; left: 50%; transform: translateX(-50%); }
+.direction.west { left: 12px; top: 50%; transform: translateY(-50%); }
 
 .compass-value-large {
-    font-size: 2.75rem;
-    font-weight: 600;
-    color: #1d1d1f;
+    font-size: 3rem;
+    font-weight: 100;
+    color: #ffffff;
     font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-    letter-spacing: -0.022em;
+    letter-spacing: 0.1em;
+    margin-top: 1rem;
 }
 
 /* プログレスバー */
@@ -211,26 +222,27 @@ header h1 {
 
 .progress-bar {
     width: 100%;
-    height: 4px;
-    background: #e5e5e7;
-    border-radius: 2px;
+    height: 1px;
+    background: #333333;
+    border-radius: 0;
     overflow: hidden;
-    margin: 1.5rem 0;
+    margin: 2rem 0;
 }
 
 .progress-fill {
     height: 100%;
-    background: #007aff;
+    background: #ffffff;
     width: 0%;
-    transition: width 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    border-radius: 2px;
+    transition: width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
 #hold-timer {
-    font-weight: 500;
-    color: #515154;
-    font-size: 1rem;
-    margin-top: 0.5rem;
+    font-weight: 100;
+    color: #999999;
+    font-size: 0.85rem;
+    margin-top: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
 }
 
 /* 方向表示 */
@@ -239,47 +251,47 @@ header h1 {
 }
 
 .current-direction {
-    font-size: 3.5rem;
-    font-weight: 600;
-    color: #1d1d1f;
-    margin-bottom: 1.5rem;
-    letter-spacing: -0.022em;
+    font-size: 4rem;
+    font-weight: 100;
+    color: #ffffff;
+    margin-bottom: 2rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
 .direction-compass {
-    width: 260px;
-    height: 260px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    width: 300px;
+    height: 300px;
+    border: 2px solid #333333;
     border-radius: 50%;
     position: relative;
-    margin: 0 auto 1.5rem;
-    background: #f6f6f6;
+    margin: 0 auto 2rem;
+    background: transparent;
 }
 
 .direction-needle {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 2px;
-    height: 110px;
-    background: #007aff;
+    width: 1px;
+    height: 130px;
+    background: #ffffff;
     transform-origin: bottom center;
     transform: translate(-50%, -100%) rotate(0deg);
-    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    border-radius: 1px;
+    transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
 .direction-needle::before {
     content: '';
     position: absolute;
-    top: -4px;
+    top: -3px;
     left: 50%;
     transform: translateX(-50%);
     width: 0;
     height: 0;
-    border-left: 3px solid transparent;
-    border-right: 3px solid transparent;
-    border-bottom: 6px solid #007aff;
+    border-left: 2px solid transparent;
+    border-right: 2px solid transparent;
+    border-bottom: 6px solid #ffffff;
 }
 
 .direction-labels {
@@ -290,64 +302,71 @@ header h1 {
 
 .dir-label {
     position: absolute;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #86868b;
+    font-size: 0.6rem;
+    font-weight: 100;
+    color: #555555;
     text-align: center;
     line-height: 1.2;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
 }
 
 .target-direction {
-    margin-top: 2rem;
+    margin-top: 3rem;
 }
 
 .accuracy-indicator {
-    background: #f6f6f6;
-    border: none;
-    border-radius: 12px;
-    padding: 1.25rem;
-    margin: 1.5rem 0;
-    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    background: transparent;
+    border: 1px solid #333333;
+    border-radius: 0;
+    padding: 2rem;
+    margin: 2rem 0;
+    transition: all 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
 #accuracy-text {
-    font-weight: 500;
-    color: #515154;
-    font-size: 1rem;
+    font-weight: 100;
+    color: #999999;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
 }
 
 .accuracy-indicator.success {
-    background: #e3f2fd;
-    border: 1px solid #007aff;
+    background: transparent;
+    border: 1px solid #ffffff;
 }
 
 .accuracy-indicator.success #accuracy-text {
-    color: #007aff;
+    color: #ffffff;
 }
 
 /* ボタン */
 .next-button {
-    background: #007aff;
+    background: transparent;
     color: #ffffff;
-    border: none;
-    padding: 0.875rem 2rem;
-    border-radius: 22px;
-    font-size: 1rem;
-    font-weight: 600;
+    border: 1px solid #ffffff;
+    padding: 1rem 3rem;
+    border-radius: 0;
+    font-size: 0.85rem;
+    font-weight: 100;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    margin-top: 1.5rem;
-    min-width: 120px;
+    transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    margin-top: 2rem;
+    min-width: 150px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
 }
 
 .next-button:hover {
-    background: #0056d6;
-    transform: translateY(-1px);
+    background: #ffffff;
+    color: #0a0a0a;
+    transform: none;
 }
 
 .next-button:active {
-    background: #004bb4;
-    transform: translateY(0);
+    background: #cccccc;
+    color: #0a0a0a;
 }
 
 /* モーダル */
@@ -375,75 +394,90 @@ header h1 {
 }
 
 .modal-content {
-    background: #ffffff;
-    border: none;
-    padding: 2.5rem;
-    border-radius: 20px;
+    background: #0a0a0a;
+    border: 1px solid #333333;
+    padding: 3rem;
+    border-radius: 0;
     text-align: center;
     max-width: 90%;
-    width: 360px;
-    animation: modalSlideIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    width: 400px;
+    animation: modalSlideIn 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
 @keyframes modalSlideIn {
-    from { transform: translateY(-20px) scale(0.95); opacity: 0; }
-    to { transform: translateY(0) scale(1); opacity: 1; }
+    from { transform: translateY(-30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
 
 .modal-content h3 {
-    color: #1d1d1f;
-    margin-bottom: 1.5rem;
+    color: #ffffff;
+    margin-bottom: 2rem;
     font-size: 1.5rem;
-    font-weight: 600;
-    letter-spacing: -0.022em;
+    font-weight: 100;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
 .modal-content p {
-    color: #515154;
-    margin-bottom: 1.25rem;
-    line-height: 1.7;
-    font-size: 1rem;
+    color: #999999;
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+    font-size: 0.9rem;
+    font-weight: 300;
 }
 
 /* レスポンシブ調整 */
 @media (max-width: 480px) {
     .puzzle-content {
-        padding: 1.5rem;
-        margin: 0 0.5rem;
+        padding: 2rem;
+        margin: 0 1rem;
+        border: 1px solid #222222;
     }
     
     .compass-circle, .direction-compass {
-        width: 150px;
-        height: 150px;
+        width: 200px;
+        height: 200px;
     }
     
     .compass-needle, .direction-needle {
-        height: 60px;
+        height: 80px;
     }
     
     .compass-value-large {
-        font-size: 2rem;
-    }
-    
-    .current-direction {
         font-size: 2.5rem;
     }
     
+    .current-direction {
+        font-size: 3rem;
+    }
+    
     header h1 {
-        font-size: 1.3rem;
+        font-size: 1.25rem;
+        letter-spacing: 0.05em;
+    }
+    
+    .modal-content {
+        padding: 2rem;
+        width: 90%;
+    }
+    
+    .sensor-display {
+        padding: 1.5rem;
+        margin: 2rem 0;
     }
 }
 
 /* タッチデバイス用の改善 */
 @media (hover: none) and (pointer: coarse) {
     .next-button:hover {
-        background: #007aff;
+        background: transparent;
+        color: #ffffff;
         transform: none;
     }
     
     .next-button:active {
-        background: #0056d6;
+        background: #ffffff;
+        color: #0a0a0a;
     }
 }
 
