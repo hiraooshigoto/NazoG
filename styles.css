@@ -1,0 +1,721 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    color: white;
+    transition: background-color 0.5s ease;
+}
+
+/* ステージごとのテーマカラー用のクラス */
+/* ステージごとのテーマカラー用のクラス */
+body.stage-0 { background-color: #808080; }  /* チュートリアル: 灰色 */
+
+/* 1-3: 赤黒系 */
+body.stage-1 { background-color: #8B0000; }
+body.stage-2 { background-color: #800000; }
+body.stage-3 { background-color: #8B1A1A; }
+
+/* 4-6: オレンジ系 */
+body.stage-4 { background-color: #D35400; }
+body.stage-5 { background-color: #BA4A00; }
+body.stage-6 { background-color: #A04000; }
+
+/* 7-9: 暗い黄色系 */
+body.stage-7 { background-color: #7c6818; }
+body.stage-8 { background-color: #947d21; }
+body.stage-9 { background-color: #917a1d; }
+
+/* 10-12: 緑系 */
+body.stage-10 { background-color: #186A3B; }
+body.stage-11 { background-color: #145A32; }
+body.stage-12 { background-color: #0B5345; }
+
+/* 13-15: 青系 */
+body.stage-13 { background-color: #1F618D; }
+body.stage-14 { background-color: #1A5276; }
+body.stage-15 { background-color: #154360; }
+
+/* 16-18: 藍色系 */
+body.stage-16 { background-color: #1A237E; }
+body.stage-17 { background-color: #151965; }
+body.stage-18 { background-color: #10174C; }
+
+/* 19-21: 紫色系 */
+body.stage-19 { background-color: #4A235A; }
+body.stage-20 { background-color: #3E1F4A; }
+body.stage-21 { background-color: #321B3B; }
+
+/* 22: 黒 */
+body.stage-22 { background-color: #000000; }
+
+/* 23: エンディング */
+body.stage-23 { background-color: #5D4037; }
+
+.container {
+    width: 100%;
+    max-width: 400px;
+    padding: 20px;
+  
+}
+
+.problem-area {
+    width: 100%;
+    aspect-ratio: 1;
+    background-color: #f0f0f0;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+    color: #333;
+}
+
+.puzzle-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+}
+
+.problem-element {
+    position: absolute;
+
+    z-index: 2;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+/* p5.jsキャンバス用のスタイル */
+.problem-element canvas {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.title-area {
+    margin-bottom: 20px;
+}
+
+.title-area h2 {
+    font-size: 24px;
+    margin-bottom: 5px;
+}
+
+.title-area p {
+    color: #ccc;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background-color: transparent;
+    border-radius: 2px;
+    margin-bottom: 10px;
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    touch-action: none;
+}
+
+.progress-track {
+    width: 100%;
+    height: 4px;
+    background-color: #4a4a4a;
+    border-radius: 2px;
+    position: relative;
+}
+
+.progress {
+    position: absolute;
+    height: 100%;
+    background-color: white;
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.1s linear;
+}
+
+.progress-knob {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background-color: white;
+    border-radius: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    left: 0%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    z-index: 1;
+    transition: transform 0.1s ease;
+}
+
+.progress-knob:active {
+    transform: translate(-50%, -50%) scale(1.2);
+}
+
+@media (hover: none) {
+    .progress-knob {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+.time-display {
+    display: flex;
+    justify-content: space-between;
+    color: #ccc;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+.controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 32px;
+    margin-top: 25px;
+}
+
+.control-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.control-button img {
+    width: 78px;
+    height: 78px;
+}
+
+.play-pause img {
+    width: 82px;
+    height: 82px;
+}
+
+.answer-area {
+    margin-top: 5px;
+    text-align: center;
+    padding: 10px;
+}
+
+.answer-area p {
+    color: rgb(255, 255, 255);
+    font-size: 30px;
+    font-weight: bold;
+}
+
+@keyframes shakeAnimation {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+.shake {
+    animation: shakeAnimation 0.2s ease-in-out;
+}
+
+
+.rhythm-dots-container {
+    width: 100%;
+    height: 30px;
+    margin: 10px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.rhythm-dots {
+    width: 100%;
+    height: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 40px;
+}
+
+.rhythm-dot {
+    width: 12px;
+    height: 12px;
+    background-color: white;
+    border-radius: 50%;
+    opacity: 0.5;
+    transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+.rhythm-dot.active {
+    transform: scale(1.5);
+    opacity: 1;
+}
+
+.rhythm-dot.required {
+    border: 3px solid #ffeb3b;
+}
+
+.rhythm-dot.success {
+    background-color: #000000;
+    opacity: 1;
+}
+
+.rhythm-dot.selected {
+    background-color: #000000;
+    opacity: 1;
+}
+
+.problem-element {
+    position: absolute;
+    transform-origin: center center;
+    z-index: 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.problem-element img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.problem-element.dynamic-text-group {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    transform: translate(-50%, -50%);
+}
+
+.dynamic-text-char {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    text-align: center;
+    line-height: 1;
+    display: inline-block;
+}
+
+.number-text-word {
+    line-height: 1;
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
+}
+
+.number-text-char {
+    transition: all 0.2s ease;
+}
+
+.progress-bar, .time-display {
+    display: none;  /* シークバーと時間表示を非表示に */
+}
+
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.modal-content {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    max-width: 90%;
+    width: 400px;
+    color: #333;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+}
+
+.modal-title {
+    font-size: 24px;
+    margin-bottom: 20px;
+    text-align: center;
+    color: #333;
+}
+
+.modal-text {
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 25px;
+}
+
+.modal-button {
+    display: block;
+    width: 200px;
+    margin: 0 auto;
+    padding: 12px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    transition: background-color 0.3s;
+}
+
+.modal-button:hover {
+    background-color: #45a049;
+}
+
+/* styles.css */
+
+/* クリック可能なリンクのスタイル */
+.answer-area a {
+    color: #1DA1F2; /* Twitterブルー */
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.answer-area a:hover {
+    text-decoration: underline;
+}
+
+.answer-area {
+    margin-top: 5px;
+    text-align: center;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.answer-area p {
+    color: rgb(255, 255, 255);
+    font-size: 30px;
+    font-weight: bold;
+}
+
+#shareButton {
+    margin-top: 15px;
+    z-index: 10;
+}
+
+/* styles.cssに追加 */
+.share-container {
+    display: none; /* デフォルトでは非表示 */
+    text-align: center;
+    margin: 20px 0;
+    opacity: 0;
+    pointer-events: none; /* クリック不可に */
+    transition: opacity 0.3s ease;
+}
+
+/* ステージ17の時だけ表示 */
+body.stage-17 .share-container {
+    display: block;
+    opacity: 1;
+    pointer-events: auto; /* クリック可能に */
+}
+
+.share-button {
+    background-color: #1DA1F2;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 12px 24px;
+    font-size: 16px;
+    cursor: pointer;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    transition: background-color 0.3s ease;
+}
+
+.share-button:hover {
+    background-color: #1a91da;
+}
+
+/* styles.cssに追加 */
+.share-container {
+    text-align: center;
+    margin: 20px 0;
+    opacity: 0;
+    pointer-events: none; /* クリック不可に */
+    transition: opacity 0.3s ease;
+    display: block;
+}
+
+/* ステージ17以外では完全に非表示 */
+body:not(.stage-17) .share-container {
+    display: none;
+}
+
+/* ステージ17の時だけ表示 */
+body.stage-17 .share-container {
+    opacity: 1;
+    pointer-events: auto; /* クリック可能に */
+}
+
+.share-button {
+    background-color: #1DA1F2;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 12px 24px;
+    font-size: 16px;
+    cursor: pointer;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    transition: background-color 0.3s ease;
+}
+
+.share-button:hover {
+    background-color: #1a91da;
+}
+
+/* リセットボタンのスタイル */
+.reset-container {
+    text-align: center;
+    margin: 20px 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    display: none;
+}
+
+body.stage-16 .reset-container {
+    display: block;
+}
+
+body.stage-16 .reset-container.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.reset-button {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 12px 24px;
+    font-size: 16px;
+    cursor: pointer;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    transition: background-color 0.3s ease;
+}
+
+.reset-button:hover {
+    background-color: #c82333;
+}
+
+
+
+
+.reset-button:hover {
+    background-color: #c82333;
+}
+
+.hint-button {
+    position: fixed;  /* fixedから absoluteに変更 */
+    top: 20px;
+    left: 20px;
+    width: 40px;
+    height: 40px;
+    background-color: #ffffff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.hint-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 3px 7px rgba(0,0,0,0.3);
+}
+
+.hint-button.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.8);
+}
+
+.hint-button img {
+    width: 24px;
+    height: 24px;
+}
+
+/* ヒントモーダルのスタイル */
+.hint-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.hint-modal.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.hint-content {
+    background-color: white;
+    padding: 25px;
+    border-radius: 15px;
+    max-width: 90%;
+    width: 400px;
+    color: #333;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.hint-content h3 {
+    font-size: 22px;
+    margin-bottom: 15px;
+    text-align: center;
+    color: #2c3e50;
+}
+
+.hint-content p {
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    color: #34495e;
+}
+
+/* ヒントの答え表示エリア */
+.hint-answer {
+    margin: 15px 0;
+    padding: 12px;
+    background-color: #f7f9fc;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    color: #2c3e50;
+    display: none;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}
+
+.hint-answer.show {
+    display: block;
+    transform: translateY(0);
+}
+
+/* ボタンコンテナ */
+.hint-buttons {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+/* 共通のボタンスタイル */
+.hint-button-base {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+/* 閉じるボタン */
+.hint-close {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.hint-close:hover {
+    background-color: #c0392b;
+    transform: translateY(-2px);
+}
+
+/* 答えを見るボタン */
+.hint-show-answer {
+    background-color: #3498db;
+    color: white;
+}
+
+.hint-show-answer:hover {
+    background-color: #2980b9;
+    transform: translateY(-2px);
+}
+
+.hint-show-answer:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #1a1a1a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+}
+
+.loading-content {
+    text-align: center;
+}
+
+.loading-circle {
+    width: 80px;
+    height: 80px;
+    border: 4px solid #333;
+    border-top: 4px solid #fff;
+    border-radius: 50%;
+    margin: 0 auto 20px;
+    animation: spin 1s linear infinite;
+}
+
+.loading-text {
+    color: #fff;
+    font-size: 24px;
+    margin-bottom: 10px;
+    letter-spacing: 2px;
+}
+
+.loading-progress {
+    color: #888;
+    font-size: 18px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-screen.fade-out {
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
