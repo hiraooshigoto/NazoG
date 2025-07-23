@@ -193,6 +193,95 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ステージ6: バイブレーションモールス信号 -->
+            <div id="stage-6" class="stage">
+                <div class="puzzle-content">
+                    <h2>ステージ 6</h2>
+                    <p><strong>モールス信号</strong>を解読してください。</p>
+                    <p>バイブレーションで再生されるモールス信号を聞いて、正しい英単語を入力してください。</p>
+                    
+                    <div class="morse-display">
+                        <div class="morse-instruction">
+                            <div class="morse-legend">
+                                <div class="morse-legend-item">
+                                    <span class="morse-dot">●</span>
+                                    <span>短い振動 = ドット (.)</span>
+                                </div>
+                                <div class="morse-legend-item">
+                                    <span class="morse-dash">━</span>
+                                    <span>長い振動 = ダッシュ (-)</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="morse-controls">
+                            <button id="play-morse-btn" class="next-button morse-button">
+                                📳 モールス信号を再生
+                            </button>
+                            
+                            <div class="morse-status" id="morse-status">
+                                新しいモールス信号を再生する準備ができました
+                            </div>
+                        </div>
+                        
+                        <div class="morse-input-section">
+                            <label for="morse-input" class="morse-label">解読した英単語を入力:</label>
+                            <input type="text" id="morse-input" class="morse-input" placeholder="例: SOS" maxlength="8" autocomplete="off">
+                            
+                            <div class="morse-hint" id="morse-hint"></div>
+                            
+                            <button id="submit-morse-btn" class="next-button morse-submit">
+                                答えを送信
+                            </button>
+                        </div>
+                        
+                        <div class="morse-help">
+                            <details>
+                                <summary>モールス信号表を見る</summary>
+                                <div class="morse-table">
+                                    <div class="morse-table-row">
+                                        <span>A: ●━</span>
+                                        <span>B: ━●●●</span>
+                                        <span>C: ━●━●</span>
+                                        <span>D: ━●●</span>
+                                        <span>E: ●</span>
+                                    </div>
+                                    <div class="morse-table-row">
+                                        <span>F: ●●━●</span>
+                                        <span>G: ━━●</span>
+                                        <span>H: ●●●●</span>
+                                        <span>I: ●●</span>
+                                        <span>J: ●━━━</span>
+                                    </div>
+                                    <div class="morse-table-row">
+                                        <span>K: ━●━</span>
+                                        <span>L: ●━●●</span>
+                                        <span>M: ━━</span>
+                                        <span>N: ━●</span>
+                                        <span>O: ━━━</span>
+                                    </div>
+                                    <div class="morse-table-row">
+                                        <span>P: ●━━●</span>
+                                        <span>Q: ━━●━</span>
+                                        <span>R: ●━●</span>
+                                        <span>S: ●●●</span>
+                                        <span>T: ━</span>
+                                    </div>
+                                    <div class="morse-table-row">
+                                        <span>U: ●●━</span>
+                                        <span>V: ●●●━</span>
+                                        <span>W: ●━━</span>
+                                        <span>X: ━●●━</span>
+                                        <span>Y: ━●━━</span>
+                                        <span>Z: ━━●●</span>
+                                    </div>
+                                </div>
+                            </details>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <!-- 成功メッセージ -->

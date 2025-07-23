@@ -465,6 +465,24 @@ header h1 {
         padding: 1.5rem;
         margin: 2rem 0;
     }
+    
+    .morse-legend {
+        padding: 1rem;
+    }
+    
+    .morse-input {
+        font-size: 1rem;
+        padding: 0.75rem;
+    }
+    
+    .morse-table-row {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .morse-table-row span {
+        text-align: left;
+    }
 }
 
 /* タッチデバイス用の改善 */
@@ -654,6 +672,169 @@ header h1 {
     font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
 }
 
+/* ステージ6: バイブレーションモールス信号 */
+.morse-display {
+    margin: 2rem 0;
+}
+
+.morse-instruction {
+    margin-bottom: 2rem;
+}
+
+.morse-legend {
+    background: transparent;
+    border: 1px solid #333333;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.morse-legend-item {
+    display: flex;
+    align-items: center;
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+    color: #ccc;
+}
+
+.morse-dot, .morse-dash {
+    display: inline-block;
+    width: 2rem;
+    text-align: center;
+    color: #ffffff;
+    font-weight: bold;
+    margin-right: 1rem;
+}
+
+.morse-controls {
+    text-align: center;
+    margin: 2rem 0;
+}
+
+.morse-button {
+    font-size: 1rem;
+    padding: 1rem 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.morse-status {
+    color: #999999;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 1rem 0;
+    min-height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.morse-input-section {
+    margin: 3rem 0;
+}
+
+.morse-label {
+    display: block;
+    color: #ccc;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.morse-input {
+    width: 100%;
+    background: transparent;
+    border: 1px solid #333333;
+    border-radius: 0;
+    padding: 1rem;
+    color: #ffffff;
+    font-size: 1.2rem;
+    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    transition: border-color 0.3s ease;
+}
+
+.morse-input:focus {
+    outline: none;
+    border-color: #ffffff;
+}
+
+.morse-input::placeholder {
+    color: #555555;
+    text-transform: uppercase;
+}
+
+.morse-hint {
+    color: #999999;
+    font-size: 0.85rem;
+    text-align: center;
+    margin: 1rem 0;
+    min-height: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.morse-submit {
+    width: 100%;
+    margin-top: 1.5rem;
+}
+
+.morse-help {
+    margin-top: 3rem;
+    border-top: 1px solid #333333;
+    padding-top: 2rem;
+}
+
+.morse-help details {
+    color: #999999;
+}
+
+.morse-help summary {
+    cursor: pointer;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #222222;
+}
+
+.morse-help summary:hover {
+    color: #ffffff;
+}
+
+.morse-table {
+    margin-top: 1rem;
+    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+}
+
+.morse-table-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 0.5rem 0;
+    font-size: 0.8rem;
+}
+
+.morse-table-row span {
+    flex: 1;
+    text-align: center;
+    color: #ccc;
+    padding: 0.25rem;
+}
+
+/* バイブレーション非対応時のスタイル */
+.vibration-unsupported {
+    color: #ff6b6b;
+    font-size: 0.9rem;
+    text-align: center;
+    margin: 1rem 0;
+    padding: 1rem;
+    border: 1px solid #ff6b6b;
+    background: rgba(255, 107, 107, 0.1);
+}
+
 /* 横向き時の調整 */
 @media (orientation: landscape) and (max-height: 500px) {
     .puzzle-content {
@@ -685,5 +866,17 @@ header h1 {
     .mini-compass-circle {
         width: 100px;
         height: 100px;
+    }
+    
+    .morse-legend {
+        padding: 1rem;
+    }
+    
+    .morse-input-section {
+        margin: 2rem 0;
+    }
+    
+    .morse-help {
+        margin-top: 2rem;
     }
 } 

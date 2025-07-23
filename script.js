@@ -26,6 +26,34 @@ let shakeDetected = false;
 let shakeCount = 0;
 let lastShakeTime = 0;
 
+// ステージ6: バイブレーションモールス信号用
+let morseCode = '';
+let currentMorseWord = '';
+let currentMorsePattern = [];
+let playerInput = '';
+let isPlayingMorse = false;
+
+// モールス信号パターン定義
+const morsePatterns = {
+    'A': '.-',    'B': '-...',  'C': '-.-.',  'D': '-..',   'E': '.',
+    'F': '..-.',  'G': '--.',   'H': '....',  'I': '..',    'J': '.---',
+    'K': '-.-',   'L': '.-..',  'M': '--',    'N': '-.',    'O': '---',
+    'P': '.--.',  'Q': '--.-',  'R': '.-.',   'S': '...',   'T': '-',
+    'U': '..-',   'V': '...-',  'W': '.--',   'X': '-..-',  'Y': '-.--',
+    'Z': '--..',
+    '1': '.----', '2': '..---', '3': '...--', '4': '....-', '5': '.....',
+    '6': '-....', '7': '--...', '8': '---..', '9': '----.', '0': '-----'
+};
+
+// ステージ6用の単語リスト
+const morseWords = ['SOS', 'HELP', 'LOVE', 'GAME', 'CODE', 'TECH', 'WAVE'];
+
+// バイブレーション設定
+const VIBRATION_SHORT = 200;  // 短点（ドット）
+const VIBRATION_LONG = 600;   // 長点（ダッシュ）
+const VIBRATION_PAUSE = 300;  // 文字間の休止
+const VIBRATION_WORD_PAUSE = 1000; // 単語間の休止
+
 // DOM要素の取得（グローバル変数として保持）
 let stageInfo, permissionModal, successModal, requestPermissionBtn, nextStageBtn, tutorialNextBtn;
 
@@ -138,14 +166,56 @@ function initGame() {
             console.log('✅ チュートリアル次へボタンにイベントリスナーを追加');
         }
         
+        // ステージ6: モールス信号関連のイベントリスナー
+        const playMorseBtn = document.getElementById('play-morse-btn');
+        const morseInput = document.getElementById('morse-input');
+        const submitMorseBtn = document.getElementById('submit-morse-btn');
+        
+        if (playMorseBtn) {
+            playMorseBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('🔘 モールス信号再生ボタンクリック');
+                if (currentMorseWord) {
+                    playMorseVibration(currentMorseWord);
+                }
+            });
+            console.log('✅ モールス信号再生ボタンにイベントリスナーを追加');
+        }
+        
+        if (morseInput) {
+            morseInput.addEventListener('input', function(e) {
+                console.log('📝 モールス信号入力:', e.target.value);
+                checkMorseInput();
+            });
+            console.log('✅ モールス信号入力フィールドにイベントリスナーを追加');
+        }
+        
+        if (submitMorseBtn) {
+            submitMorseBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('🔘 モールス信号送信ボタンクリック');
+                checkMorseInput();
+            });
+            console.log('✅ モールス信号送信ボタンにイベントリスナーを追加');
+        }
+        
         // ステージ表示を更新
         updateStageDisplay();
+        
+        // ステージ6の初期化
+        currentMorseWord = generateNewMorseWord();
+        console.log('📡 初期モールス信号の単語:', currentMorseWord);
+        
+        // バイブレーション機能チェック
+        const vibrationSupported = checkVibrationSupport();
+        console.log('📳 バイブレーション機能サポート:', vibrationSupported);
         
         // 環境情報をログ出力
         console.log('🌐 環境情報:');
         console.log('- URL:', window.location.href);
         console.log('- Protocol:', window.location.protocol);
         console.log('- User Agent:', navigator.userAgent.substring(0, 50) + '...');
+        console.log('- Vibration Support:', vibrationSupported);
         
         console.log('✅ ゲーム初期化完了');
         
@@ -503,6 +573,9 @@ function handleStageLogic() {
         case 5:
             handleStage5Logic();
             break;
+        case 6:
+            handleStage6Logic();
+            break;
     }
 }
 
@@ -712,12 +785,131 @@ function handleStage5Logic() {
             finalStatus.textContent = '🎉 全ての条件をクリア！';
             finalStatus.className = 'final-status success';
             setTimeout(() => {
-                stageComplete('ステージ5クリア！\n全ての条件を満たしました！\nゲームコンプリート！');
+                stageComplete('ステージ5クリア！\n全ての条件を満たしました！');
             }, 2000);
         } else {
             finalStatus.textContent = '条件を満たしてください';
             finalStatus.className = 'final-status';
         }
+    }
+}
+
+// ステージ6: バイブレーションモールス信号
+function handleStage6Logic() {
+    // このステージではセンサーロジックは不要
+    // バイブレーション再生とテキスト入力の管理のみ
+}
+
+// バイブレーション機能チェック
+function checkVibrationSupport() {
+    if (!navigator.vibrate) {
+        console.warn('バイブレーション機能はサポートされていません');
+        return false;
+    }
+    return true;
+}
+
+// モールス信号をバイブレーションで再生
+async function playMorseVibration(word) {
+    if (!checkVibrationSupport() || isPlayingMorse) return;
+    
+    isPlayingMorse = true;
+    currentMorseWord = word;
+    currentMorsePattern = [];
+    
+    console.log('モールス信号再生開始:', word);
+    
+    // UI更新
+    const morseStatus = document.getElementById('morse-status');
+    const playButton = document.getElementById('play-morse-btn');
+    
+    if (morseStatus) morseStatus.textContent = `再生中: ${word}`;
+    if (playButton) playButton.disabled = true;
+    
+    for (let i = 0; i < word.length; i++) {
+        const letter = word[i];
+        const pattern = morsePatterns[letter];
+        
+        if (pattern) {
+            currentMorsePattern.push(pattern);
+            
+            // 文字のモールス信号を再生
+            for (let j = 0; j < pattern.length; j++) {
+                const signal = pattern[j];
+                
+                if (signal === '.') {
+                    // 短点
+                    navigator.vibrate(VIBRATION_SHORT);
+                    await sleep(VIBRATION_SHORT + 100);
+                } else if (signal === '-') {
+                    // 長点
+                    navigator.vibrate(VIBRATION_LONG);
+                    await sleep(VIBRATION_LONG + 100);
+                }
+                
+                // 信号間の短い休止
+                await sleep(100);
+            }
+            
+            // 文字間の休止
+            if (i < word.length - 1) {
+                await sleep(VIBRATION_PAUSE);
+            }
+        }
+    }
+    
+    isPlayingMorse = false;
+    
+    // UI更新
+    if (morseStatus) morseStatus.textContent = `再生完了！ "${word}" を入力してください`;
+    if (playButton) playButton.disabled = false;
+    
+    console.log('モールス信号再生完了');
+}
+
+// スリープ関数
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 新しいモールス信号の単語を選択
+function generateNewMorseWord() {
+    const randomIndex = Math.floor(Math.random() * morseWords.length);
+    return morseWords[randomIndex];
+}
+
+// プレイヤーの入力をチェック
+function checkMorseInput() {
+    const inputElement = document.getElementById('morse-input');
+    const submitButton = document.getElementById('submit-morse-btn');
+    const hintElement = document.getElementById('morse-hint');
+    
+    if (!inputElement) return;
+    
+    const input = inputElement.value.toUpperCase().trim();
+    
+    if (input === currentMorseWord) {
+        // 正解
+        inputElement.style.borderColor = '#ffffff';
+        if (hintElement) hintElement.textContent = '🎉 正解！';
+        
+        setTimeout(() => {
+            stageComplete('ステージ6クリア！\nモールス信号を解読できました！');
+        }, 1500);
+    } else if (input.length > 0) {
+        // 不正解（入力中）
+        inputElement.style.borderColor = '#ff6b6b';
+        if (hintElement) {
+            if (currentMorseWord.startsWith(input)) {
+                hintElement.textContent = `良い感じです！続けてください... (${input.length}/${currentMorseWord.length})`;
+            } else {
+                hintElement.textContent = '違います。もう一度聞いてみましょう。';
+            }
+        }
+    } else {
+        // 空の入力
+        inputElement.style.borderColor = '#333333';
+        if (hintElement) hintElement.textContent = '';
     }
 }
 
@@ -768,8 +960,8 @@ function goToNextStage() {
     // 次のステージへ
     currentStage++;
     
-    // ステージ5まで実装済み
-    if (currentStage > 5) {
+    // ステージ6まで実装済み
+    if (currentStage > 6) {
         alert('🎉 すべてのステージをクリアしました！\nお疲れ様でした！');
         currentStage = 0; // リセット
     }
@@ -822,6 +1014,26 @@ function resetStageState() {
     const levelIndicator5 = document.getElementById('level-indicator-5');
     if (levelIndicator5) {
         levelIndicator5.classList.remove('success');
+    }
+    
+    // ステージ6の状態リセット
+    if (currentStage === 6) {
+        isPlayingMorse = false;
+        playerInput = '';
+        const morseInput = document.getElementById('morse-input');
+        const morseHint = document.getElementById('morse-hint');
+        const morseStatus = document.getElementById('morse-status');
+        
+        if (morseInput) {
+            morseInput.value = '';
+            morseInput.style.borderColor = '#333333';
+        }
+        if (morseHint) morseHint.textContent = '';
+        if (morseStatus) morseStatus.textContent = '新しいモールス信号を再生する準備ができました';
+        
+        // 新しい単語を生成
+        currentMorseWord = generateNewMorseWord();
+        console.log('新しいモールス信号の単語:', currentMorseWord);
     }
     
     // 新しいステージ開始時にシェイクカウントをリセット（ステージ5は除く）
