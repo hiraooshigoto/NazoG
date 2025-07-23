@@ -170,7 +170,7 @@ header h1 {
     background: #ffffff;
     transform-origin: bottom center;
     transform: translate(-50%, -100%) rotate(0deg);
-    transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+    /* transitionはJavaScriptで滑らかに処理 */
 }
 
 .compass-needle::before {
@@ -278,7 +278,7 @@ header h1 {
     background: #ffffff;
     transform-origin: bottom center;
     transform: translate(-50%, -100%) rotate(0deg);
-    transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+    /* transitionはJavaScriptで滑らかに処理 */
 }
 
 .direction-needle::before {
@@ -481,6 +481,179 @@ header h1 {
     }
 }
 
+/* ステージ3: シェイクチャレンジ */
+.shake-display {
+    margin: 2rem 0;
+    text-align: center;
+}
+
+.shake-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    animation: shake 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes shake {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(5px); }
+}
+
+.shake-count-display {
+    font-size: 2.5rem;
+    font-weight: 100;
+    color: #ffffff;
+    margin-bottom: 2rem;
+    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+}
+
+.shake-instruction {
+    margin: 2rem 0;
+    color: #999999;
+    font-size: 0.9rem;
+}
+
+/* ステージ4: 水平維持チャレンジ */
+.level-display {
+    margin: 2rem 0;
+    text-align: center;
+}
+
+.level-circle {
+    width: 200px;
+    height: 200px;
+    border: 2px solid #333333;
+    border-radius: 50%;
+    position: relative;
+    margin: 0 auto 2rem;
+    background: transparent;
+}
+
+.level-bubble {
+    width: 20px;
+    height: 20px;
+    background: #ffffff;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    transition: all 0.1s ease;
+}
+
+.level-crosshair {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 30px;
+    height: 30px;
+    border: 1px solid #666666;
+    border-radius: 50%;
+}
+
+.level-info {
+    text-align: center;
+}
+
+#tilt-magnitude {
+    font-size: 1.2rem;
+    color: #ffffff;
+    margin-bottom: 1rem;
+    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+}
+
+/* ステージ5: 複合チャレンジ */
+.compound-challenge {
+    margin: 2rem 0;
+}
+
+.challenge-conditions {
+    margin-bottom: 2rem;
+}
+
+.condition-indicator {
+    background: transparent;
+    border: 1px solid #333333;
+    padding: 1rem;
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+    color: #999999;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.condition-indicator.success {
+    border-color: #ffffff;
+    color: #ffffff;
+}
+
+.final-status {
+    font-size: 1.2rem;
+    color: #999999;
+    text-align: center;
+    margin: 2rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.final-status.success {
+    color: #ffffff;
+    font-size: 1.5rem;
+}
+
+/* ミニコンパス */
+.mini-compass {
+    margin: 2rem 0;
+    text-align: center;
+}
+
+.mini-compass-circle {
+    width: 120px;
+    height: 120px;
+    border: 1px solid #333333;
+    border-radius: 50%;
+    position: relative;
+    margin: 0 auto 1rem;
+    background: transparent;
+}
+
+.mini-compass-needle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 1px;
+    height: 50px;
+    background: #ffffff;
+    transform-origin: bottom center;
+    transform: translate(-50%, -100%) rotate(0deg);
+    transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.mini-compass-directions {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+}
+
+.mini-direction {
+    position: absolute;
+    font-weight: 100;
+    font-size: 0.6rem;
+    color: #555555;
+}
+
+.mini-direction.north { top: 5px; left: 50%; transform: translateX(-50%); }
+.mini-direction.east { right: 5px; top: 50%; transform: translateY(-50%); }
+.mini-direction.south { bottom: 5px; left: 50%; transform: translateX(-50%); }
+.mini-direction.west { left: 5px; top: 50%; transform: translateY(-50%); }
+
+.mini-compass-value {
+    font-size: 1rem;
+    color: #ffffff;
+    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+}
+
 /* 横向き時の調整 */
 @media (orientation: landscape) and (max-height: 500px) {
     .puzzle-content {
@@ -502,5 +675,15 @@ header h1 {
     
     .current-direction {
         font-size: 2rem;
+    }
+    
+    .level-circle {
+        width: 150px;
+        height: 150px;
+    }
+    
+    .mini-compass-circle {
+        width: 100px;
+        height: 100px;
     }
 } 

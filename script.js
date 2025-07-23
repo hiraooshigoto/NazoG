@@ -9,6 +9,23 @@ let holdStartTime = 0;
 let holdInterval = null;
 let permissionGranted = false;
 
+// 滑らかなアニメーション用
+let smoothCompassHeading = 0;
+let smoothTiltX = 0;
+let smoothTiltY = 0;
+let animationFrameId = null;
+
+// センサー平滑化用
+let sensorHistory = [];
+const HISTORY_SIZE = 5;
+const SMOOTHING_FACTOR = 0.3;
+
+// 加速度センサー用
+let acceleration = { x: 0, y: 0, z: 0 };
+let shakeDetected = false;
+let shakeCount = 0;
+let lastShakeTime = 0;
+
 // DOM要素の取得（グローバル変数として保持）
 let stageInfo, permissionModal, successModal, requestPermissionBtn, nextStageBtn, tutorialNextBtn;
 
@@ -286,6 +303,30 @@ function startSensorListening() {
     }
 }
 
+// 角度の最短パス計算
+function getShortestAngleDifference(current, target) {
+    let diff = target - current;
+    if (diff > 180) {
+        diff -= 360;
+    } else if (diff < -180) {
+        diff += 360;
+    }
+    return diff;
+}
+
+// センサー値の平滑化
+function smoothSensorValue(newValue, currentSmooth, factor = SMOOTHING_FACTOR) {
+    return currentSmooth + (newValue - currentSmooth) * factor;
+}
+
+// センサーヒストリーに追加
+function addToSensorHistory(compass, tiltX, tiltY) {
+    sensorHistory.push({ compass, tiltX, tiltY, timestamp: Date.now() });
+    if (sensorHistory.length > HISTORY_SIZE) {
+        sensorHistory.shift();
+    }
+}
+
 // デバイス方向ハンドラー
 function handleOrientation(event) {
     // デバッグ用：初回のイベント受信をログ
@@ -313,31 +354,136 @@ function handleOrientation(event) {
     }
     
     // 0-360の範囲に正規化
-    compassHeading = Math.round((heading + 360) % 360);
+    let newCompassHeading = Math.round((heading + 360) % 360);
+    let newTiltX = Math.round(event.beta || 0);  // 前後の傾き（X軸回転）
+    let newTiltY = Math.round(event.gamma || 0); // 左右の傾き（Y軸回転）
     
-    // 傾きの値を取得
-    tiltX = Math.round(event.beta || 0);  // 前後の傾き（X軸回転）
-    tiltY = Math.round(event.gamma || 0); // 左右の傾き（Y軸回転）
+    // センサーヒストリーに追加
+    addToSensorHistory(newCompassHeading, newTiltX, newTiltY);
     
-    // センサー値の表示更新
-    updateSensorDisplay();
+    // 生の値を更新
+    compassHeading = newCompassHeading;
+    tiltX = newTiltX;
+    tiltY = newTiltY;
     
-    // 現在のステージに応じて処理
-    handleStageLogic();
+    // アニメーションが開始されていない場合は開始
+    if (!animationFrameId) {
+        startSmoothAnimation();
+    }
 }
 
-// デバイスモーションハンドラー
+// 滑らかなアニメーション開始
+function startSmoothAnimation() {
+    function animate() {
+        // コンパス値の滑らかな更新（360度問題を解決）
+        let compassDiff = getShortestAngleDifference(smoothCompassHeading, compassHeading);
+        smoothCompassHeading += compassDiff * SMOOTHING_FACTOR;
+        
+        // 360度境界での正規化
+        if (smoothCompassHeading < 0) {
+            smoothCompassHeading += 360;
+        } else if (smoothCompassHeading >= 360) {
+            smoothCompassHeading -= 360;
+        }
+        
+        // 傾きの滑らかな更新
+        smoothTiltX = smoothSensorValue(tiltX, smoothTiltX);
+        smoothTiltY = smoothSensorValue(tiltY, smoothTiltY);
+        
+        // UI更新
+        updateSensorDisplaySmooth();
+        updateNeedlePositions();
+        
+        // 現在のステージに応じて処理
+        handleStageLogic();
+        
+        // 次のフレームをスケジュール
+        animationFrameId = requestAnimationFrame(animate);
+    }
+    
+    animate();
+}
+
+// 滑らかなセンサー値表示更新
+function updateSensorDisplaySmooth() {
+    if (compassValueEl) compassValueEl.textContent = `${Math.round(smoothCompassHeading)}°`;
+    if (tiltXEl) tiltXEl.textContent = `${Math.round(smoothTiltX)}°`;
+    if (tiltYEl) tiltYEl.textContent = `${Math.round(smoothTiltY)}°`;
+}
+
+// 針の位置更新
+function updateNeedlePositions() {
+    // ステージ1のコンパス針
+    if (compassNeedle) {
+        compassNeedle.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
+    }
+    if (compassDisplay) {
+        compassDisplay.textContent = `${Math.round(smoothCompassHeading)}°`;
+    }
+    
+    // ステージ2の方向針
+    if (directionNeedle) {
+        directionNeedle.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
+    }
+    if (directionCompassDisplay) {
+        directionCompassDisplay.textContent = `${Math.round(smoothCompassHeading)}°`;
+    }
+    
+    // ステージ4の水平バブル
+    const levelBubble = document.getElementById('level-bubble');
+    if (levelBubble) {
+        // 傾きに基づいてバブルの位置を計算
+        const maxOffset = 80; // ピクセル
+        const offsetX = Math.max(-maxOffset, Math.min(maxOffset, smoothTiltY * 2));
+        const offsetY = Math.max(-maxOffset, Math.min(maxOffset, smoothTiltX * 2));
+        
+        levelBubble.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+    }
+    
+    // ステージ5のミニコンパス針
+    const miniCompassNeedle = document.getElementById('mini-compass-needle');
+    if (miniCompassNeedle) {
+        miniCompassNeedle.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
+    }
+    const miniCompassDisplay = document.getElementById('mini-compass-display');
+    if (miniCompassDisplay) {
+        miniCompassDisplay.textContent = `${Math.round(smoothCompassHeading)}°`;
+    }
+}
+
+// デバイスモーションハンドラー（加速度センサー）
 function handleMotion(event) {
-    // 必要に応じて加速度センサーの値も使用可能
-    // event.acceleration, event.accelerationIncludingGravity, event.rotationRate
+    if (!event.accelerationIncludingGravity) return;
+    
+    // 加速度値を取得
+    acceleration.x = event.accelerationIncludingGravity.x || 0;
+    acceleration.y = event.accelerationIncludingGravity.y || 0;
+    acceleration.z = event.accelerationIncludingGravity.z || 0;
+    
+    // シェイク検出
+    const accelerationMagnitude = Math.sqrt(
+        acceleration.x * acceleration.x + 
+        acceleration.y * acceleration.y + 
+        acceleration.z * acceleration.z
+    );
+    
+    // シェイク閾値（調整可能）
+    const SHAKE_THRESHOLD = 15;
+    const SHAKE_COOLDOWN = 500; // ミリ秒
+    
+    if (accelerationMagnitude > SHAKE_THRESHOLD) {
+        const now = Date.now();
+        if (now - lastShakeTime > SHAKE_COOLDOWN) {
+            shakeDetected = true;
+            shakeCount++;
+            lastShakeTime = now;
+            console.log('シェイク検出:', shakeCount);
+        }
+    }
 }
 
-// センサー値表示更新
-function updateSensorDisplay() {
-    if (compassValueEl) compassValueEl.textContent = `${compassHeading}°`;
-    if (tiltXEl) tiltXEl.textContent = `${tiltX}°`;
-    if (tiltYEl) tiltYEl.textContent = `${tiltY}°`;
-}
+// 廃止: updateSensorDisplay - updateSensorDisplaySmoothに置き換え
+// この関数は滑らかなアニメーション実装により不要
 
 // ステージ別のロジック処理
 function handleStageLogic() {
@@ -348,23 +494,27 @@ function handleStageLogic() {
         case 2:
             handleStage2Logic();
             break;
+        case 3:
+            handleStage3Logic();
+            break;
+        case 4:
+            handleStage4Logic();
+            break;
+        case 5:
+            handleStage5Logic();
+            break;
     }
 }
 
 // ステージ1: コンパス45度チャレンジ
 function handleStage1Logic() {
-    // コンパス表示更新
-    if (compassDisplay) compassDisplay.textContent = `${compassHeading}°`;
-    if (compassNeedle) {
-        compassNeedle.style.transform = `translate(-50%, -100%) rotate(${compassHeading}deg)`;
-    }
-    
     // 45度に近いかチェック（±5度の許容範囲）
     const target = 45;
     const tolerance = 5;
-    const isNearTarget = Math.abs(compassHeading - target) <= tolerance || 
-                        Math.abs(compassHeading - target - 360) <= tolerance ||
-                        Math.abs(compassHeading - target + 360) <= tolerance;
+    
+    // 最短角度差を使用
+    const angleDiff = Math.abs(getShortestAngleDifference(smoothCompassHeading, target));
+    const isNearTarget = angleDiff <= tolerance;
     
     if (isNearTarget && !isHolding) {
         // 保持開始
@@ -411,26 +561,16 @@ function stopHoldTimer() {
 
 // ステージ2: 東北を向く
 function handleStage2Logic() {
-    // 方向表示更新
-    if (directionCompassDisplay) {
-        directionCompassDisplay.textContent = `${compassHeading}°`;
-    }
-    if (directionNeedle) {
-        directionNeedle.style.transform = `translate(-50%, -100%) rotate(${compassHeading}deg)`;
-    }
-    
     // 現在の方角を計算
-    const direction = getDirectionFromHeading(compassHeading);
+    const direction = getDirectionFromHeading(smoothCompassHeading);
     if (currentDirectionEl) currentDirectionEl.textContent = direction;
     
     // 東北（45度）に近いかチェック
     const target = 45; // 東北は45度
     const tolerance = 10; // 許容範囲を少し広く
-    const difference = Math.min(
-        Math.abs(compassHeading - target),
-        Math.abs(compassHeading - target + 360),
-        Math.abs(compassHeading - target - 360)
-    );
+    
+    // 最短角度差を使用
+    const difference = Math.abs(getShortestAngleDifference(smoothCompassHeading, target));
     
     // 精度表示更新
     if (difference <= tolerance) {
@@ -450,6 +590,133 @@ function handleStage2Logic() {
             accuracyText.textContent = '近づいています！';
         } else {
             accuracyText.textContent = '方角を調整してください';
+        }
+    }
+}
+
+// ステージ3: シェイクチャレンジ
+function handleStage3Logic() {
+    const targetShakes = 5;
+    const shakeProgress = document.getElementById('shake-progress');
+    const shakeCountDisplay = document.getElementById('shake-count');
+    
+    if (shakeCountDisplay) {
+        shakeCountDisplay.textContent = `${shakeCount} / ${targetShakes}`;
+    }
+    
+    if (shakeProgress) {
+        const progress = Math.min((shakeCount / targetShakes) * 100, 100);
+        shakeProgress.style.width = `${progress}%`;
+    }
+    
+    if (shakeCount >= targetShakes) {
+        setTimeout(() => {
+            stageComplete('ステージ3クリア！\nシェイクを5回検出しました！');
+        }, 1000);
+    }
+}
+
+// ステージ4: 水平維持チャレンジ
+function handleStage4Logic() {
+    const tiltTolerance = 5; // ±5度の許容範囲
+    const requiredTime = 3000; // 3秒間
+    
+    const tiltMagnitude = Math.sqrt(smoothTiltX * smoothTiltX + smoothTiltY * smoothTiltY);
+    const isLevel = tiltMagnitude <= tiltTolerance;
+    
+    const levelIndicator = document.getElementById('level-indicator');
+    const levelTimer = document.getElementById('level-timer');
+    const tiltDisplay = document.getElementById('tilt-magnitude');
+    
+    if (tiltDisplay) {
+        tiltDisplay.textContent = `傾き: ${Math.round(tiltMagnitude)}°`;
+    }
+    
+    if (isLevel && !isHolding) {
+        // 水平維持開始
+        isHolding = true;
+        holdStartTime = Date.now();
+        if (levelIndicator) levelIndicator.classList.add('success');
+    } else if (!isLevel && isHolding) {
+        // 水平維持中断
+        isHolding = false;
+        holdTimer = 0;
+        if (levelIndicator) levelIndicator.classList.remove('success');
+    }
+    
+    if (isHolding) {
+        holdTimer = Date.now() - holdStartTime;
+        const progress = Math.min((holdTimer / requiredTime) * 100, 100);
+        
+        if (levelTimer) {
+            levelTimer.textContent = `${(holdTimer / 1000).toFixed(1)}秒維持中`;
+        }
+        
+        const levelProgress = document.getElementById('level-progress');
+        if (levelProgress) {
+            levelProgress.style.width = `${progress}%`;
+        }
+        
+        if (holdTimer >= requiredTime) {
+            isHolding = false;
+            stageComplete('ステージ4クリア！\n3秒間水平を維持しました！');
+        }
+    } else {
+        if (levelTimer) {
+            levelTimer.textContent = '0.0秒維持中';
+        }
+    }
+}
+
+// ステージ5: 複合チャレンジ
+function handleStage5Logic() {
+    const targetDirection = 0; // 北（0度）
+    const directionTolerance = 10;
+    const tiltTolerance = 5;
+    const requiredShakes = 3;
+    
+    // 北を向いているかチェック
+    const directionDiff = Math.abs(getShortestAngleDifference(smoothCompassHeading, targetDirection));
+    const isFacingNorth = directionDiff <= directionTolerance;
+    
+    // 水平かチェック
+    const tiltMagnitude = Math.sqrt(smoothTiltX * smoothTiltX + smoothTiltY * smoothTiltY);
+    const isLevel = tiltMagnitude <= tiltTolerance;
+    
+    // 全条件を満たしているかチェック
+    const allConditionsMet = isFacingNorth && isLevel && shakeCount >= requiredShakes;
+    
+    // UI更新
+    const northIndicator = document.getElementById('north-indicator');
+    const levelIndicator5 = document.getElementById('level-indicator-5');
+    const shakeIndicator = document.getElementById('shake-indicator');
+    const finalStatus = document.getElementById('final-status');
+    
+    if (northIndicator) {
+        northIndicator.className = 'condition-indicator ' + (isFacingNorth ? 'success' : '');
+        northIndicator.textContent = `北向き: ${isFacingNorth ? '✓' : '✗'} (${Math.round(directionDiff)}°差)`;
+    }
+    
+    if (levelIndicator5) {
+        levelIndicator5.className = 'condition-indicator ' + (isLevel ? 'success' : '');
+        levelIndicator5.textContent = `水平: ${isLevel ? '✓' : '✗'} (${Math.round(tiltMagnitude)}°傾き)`;
+    }
+    
+    if (shakeIndicator) {
+        shakeIndicator.className = 'condition-indicator ' + (shakeCount >= requiredShakes ? 'success' : '');
+        shakeIndicator.textContent = `シェイク: ${shakeCount}/${requiredShakes} ${shakeCount >= requiredShakes ? '✓' : ''}`;
+    }
+    
+    if (finalStatus) {
+        if (allConditionsMet) {
+            finalStatus.textContent = '🎉 全ての条件をクリア！';
+            finalStatus.className = 'final-status success';
+            setTimeout(() => {
+                stageComplete('ステージ5クリア！\n全ての条件を満たしました！\nゲームコンプリート！');
+            }, 2000);
+        } else {
+            finalStatus.textContent = '条件を満たしてください';
+            finalStatus.className = 'final-status';
         }
     }
 }
@@ -501,9 +768,9 @@ function goToNextStage() {
     // 次のステージへ
     currentStage++;
     
-    // ステージ2まで実装済み
-    if (currentStage > 2) {
-        alert('すべてのステージをクリアしました！\nお疲れ様でした！');
+    // ステージ5まで実装済み
+    if (currentStage > 5) {
+        alert('🎉 すべてのステージをクリアしました！\nお疲れ様でした！');
         currentStage = 0; // リセット
     }
     
@@ -529,8 +796,10 @@ function updateStageDisplay() {
 
 // ステージ状態リセット
 function resetStageState() {
-    // ステージ1の状態リセット
+    // 共通状態リセット
     stopHoldTimer();
+    isHolding = false;
+    holdTimer = 0;
     
     // ステージ2の状態リセット
     if (accuracyIndicator) {
@@ -538,6 +807,31 @@ function resetStageState() {
     }
     if (accuracyText) {
         accuracyText.textContent = '方角を調整してください';
+    }
+    
+    // ステージ3の状態リセット（シェイクカウンタはリセットしない）
+    // shakeCount は累積値として維持
+    
+    // ステージ4の状態リセット
+    const levelIndicator = document.getElementById('level-indicator');
+    if (levelIndicator) {
+        levelIndicator.classList.remove('success');
+    }
+    
+    // ステージ5の状態リセット
+    const levelIndicator5 = document.getElementById('level-indicator-5');
+    if (levelIndicator5) {
+        levelIndicator5.classList.remove('success');
+    }
+    
+    // 新しいステージ開始時にシェイクカウントをリセット（ステージ5は除く）
+    if (currentStage === 3) {
+        shakeCount = 0;
+        shakeDetected = false;
+    } else if (currentStage === 5) {
+        // ステージ5ではシェイクカウントをリセット
+        shakeCount = 0;
+        shakeDetected = false;
     }
 }
 

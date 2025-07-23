@@ -104,6 +104,95 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ステージ3: シェイクチャレンジ -->
+            <div id="stage-3" class="stage">
+                <div class="puzzle-content">
+                    <h2>ステージ 3</h2>
+                    <p>スマートフォンを<strong>振って</strong>ください。</p>
+                    <p>5回のシェイクを検出すればクリアです！</p>
+                    
+                    <div class="shake-display">
+                        <div class="shake-icon">📱</div>
+                        <div class="shake-count-display" id="shake-count">0 / 5</div>
+                        
+                        <div class="shake-instruction">
+                            <p>デバイスを上下に振ってください</p>
+                        </div>
+                        
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="shake-progress"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ステージ4: 水平維持チャレンジ -->
+            <div id="stage-4" class="stage">
+                <div class="puzzle-content">
+                    <h2>ステージ 4</h2>
+                    <p>スマートフォンを<strong>水平</strong>に保ってください。</p>
+                    <p>3秒間水平を維持すればクリアです！</p>
+                    
+                    <div class="level-display">
+                        <div class="level-circle">
+                            <div class="level-bubble" id="level-bubble"></div>
+                            <div class="level-crosshair"></div>
+                        </div>
+                        
+                        <div class="level-info">
+                            <div id="tilt-magnitude">傾き: 0°</div>
+                            <div class="accuracy-indicator" id="level-indicator">
+                                <span id="level-timer">0.0秒維持中</span>
+                            </div>
+                            
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="level-progress"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ステージ5: 複合チャレンジ -->
+            <div id="stage-5" class="stage">
+                <div class="puzzle-content">
+                    <h2>ステージ 5</h2>
+                    <p><strong>最終チャレンジ</strong></p>
+                    <p>以下の3つの条件を同時に満たしてください：</p>
+                    
+                    <div class="compound-challenge">
+                        <div class="challenge-conditions">
+                            <div class="condition-indicator" id="north-indicator">
+                                北向き: ✗ (0°差)
+                            </div>
+                            <div class="condition-indicator" id="level-indicator-5">
+                                水平: ✗ (0°傾き)
+                            </div>
+                            <div class="condition-indicator" id="shake-indicator">
+                                シェイク: 0/3
+                            </div>
+                        </div>
+                        
+                        <div class="final-status" id="final-status">
+                            条件を満たしてください
+                        </div>
+                        
+                        <div class="mini-compass">
+                            <div class="mini-compass-circle">
+                                <div class="mini-compass-needle" id="mini-compass-needle"></div>
+                                <div class="mini-compass-directions">
+                                    <span class="mini-direction north">N</span>
+                                    <span class="mini-direction east">E</span>
+                                    <span class="mini-direction south">S</span>
+                                    <span class="mini-direction west">W</span>
+                                </div>
+                            </div>
+                            <div class="mini-compass-value" id="mini-compass-display">0°</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <!-- 成功メッセージ -->
