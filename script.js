@@ -223,20 +223,7 @@ function initDOMElements() {
     }
 }
 
-// センサー値表示要素
-const compassValueEl = document.getElementById('compass-value');
-const tiltXEl = document.getElementById('tilt-x');
-const tiltYEl = document.getElementById('tilt-y');
-
-// ステージ1要素
-const compassDisplay = document.getElementById('compass-display');
-const compassNeedle = document.getElementById('compass-needle');
-const holdProgress = document.getElementById('hold-progress');
-const holdTimerEl = document.getElementById('hold-timer');
-
-// グローバル変数として各ステージで使用される要素を宣言
-// 実際の取得は各関数内で動的に行う
-let directionNeedle, directionCompassDisplay, successMessage;
+// センサー値表示要素は動的に取得するため、グローバル定数は削除
 
 // ゲーム初期化
 document.addEventListener('DOMContentLoaded', function() {
@@ -465,22 +452,25 @@ async function requestSensorPermission() {
             }, 3000);
         }
         
-    } catch (error) {
+            } catch (error) {
         console.error('センサー許可処理エラー:', error);
-        alert('センサー許可処理でエラーが発生しました:\n' + error.message);
         
         // 緊急フォールバック
         console.log('緊急フォールバック実行');
         permissionGranted = true;
         closePermissionModal();
         
-        // テスト用のダミー値を設定
-        setInterval(() => {
+        // テスト用のダミー値を設定（モバイルデバッグ用）
+        let dummyInterval = setInterval(() => {
             compassHeading = (compassHeading + 1) % 360;
-            tiltX = Math.sin(Date.now() / 1000) * 10;
-            tiltY = Math.cos(Date.now() / 1000) * 10;
-            updateSensorDisplay();
-            handleStageLogic();
+            tiltX = Math.sin(Date.now() / 1000) * 5;
+            tiltY = Math.cos(Date.now() / 1000) * 5;
+            
+            // アニメーション開始
+            if (!animationFrameId) {
+                startSmoothAnimation();
+                clearInterval(dummyInterval); // 一度アニメーションが始まったらダミー値は停止
+            }
         }, 100);
     }
 }
@@ -519,24 +509,25 @@ function startSensorListening() {
         window.addEventListener('devicemotion', handleMotion, { passive: true });
         console.log('✅ devicemotionイベントリスナーを追加 (passive)');
         
-        // 初期値設定
+        // 初期値設定とテスト
         setTimeout(() => {
             console.log('📊 1秒後のセンサー値:', { compassHeading, tiltX, tiltY });
             
             // センサーが動作していない場合の検出と対策
             if (compassHeading === 0 && tiltX === 0 && tiltY === 0) {
-                console.warn('⚠️ センサー値が0のまま - テストイベントを発火');
+                console.warn('⚠️ センサー値が0のまま - テストモードを開始');
                 
-                // テスト用のイベントを手動発火
-                const testEvent = new DeviceOrientationEvent('deviceorientation', {
-                    alpha: 45,    // コンパス値
-                    beta: 10,     // X軸の傾き
-                    gamma: 5,     // Y軸の傾き
-                    absolute: true
-                });
+                // ダミー値でテスト
+                compassHeading = 45;
+                tiltX = 5;
+                tiltY = 3;
                 
-                handleOrientation(testEvent);
-                console.log('🧪 テストイベントを発火しました');
+                // アニメーション開始
+                if (!animationFrameId) {
+                    startSmoothAnimation();
+                }
+                
+                console.log('🧪 テストモードでセンサー値を設定しました');
             }
         }, 1000);
         
@@ -616,8 +607,13 @@ function handleOrientation(event) {
 }
 
 // 滑らかなアニメーション開始
+let lastLogicTime = 0;
+const LOGIC_INTERVAL = 100; // ステージロジックを100msごとに実行
+
 function startSmoothAnimation() {
     function animate() {
+        const now = performance.now();
+        
         // コンパス値の滑らかな更新（360度問題を解決）
         let compassDiff = getShortestAngleDifference(smoothCompassHeading, compassHeading);
         smoothCompassHeading += compassDiff * SMOOTHING_FACTOR;
@@ -633,12 +629,15 @@ function startSmoothAnimation() {
         smoothTiltX = smoothSensorValue(tiltX, smoothTiltX);
         smoothTiltY = smoothSensorValue(tiltY, smoothTiltY);
         
-        // UI更新
+        // UI更新（毎フレーム）
         updateSensorDisplaySmooth();
         updateNeedlePositions();
         
-        // 現在のステージに応じて処理
-        handleStageLogic();
+        // ステージロジックは頻度を下げて実行
+        if (now - lastLogicTime > LOGIC_INTERVAL) {
+            handleStageLogic();
+            lastLogicTime = now;
+        }
         
         // 次のフレームをスケジュール
         animationFrameId = requestAnimationFrame(animate);
@@ -647,8 +646,22 @@ function startSmoothAnimation() {
     animate();
 }
 
+// アニメーション停止
+function stopSmoothAnimation() {
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+        console.log('📱 スムーズアニメーション停止');
+    }
+}
+
 // 滑らかなセンサー値表示更新
 function updateSensorDisplaySmooth() {
+    // チュートリアル（ステージ0）のセンサー表示
+    const compassValueEl = document.getElementById('compass-value');
+    const tiltXEl = document.getElementById('tilt-x');
+    const tiltYEl = document.getElementById('tilt-y');
+    
     if (compassValueEl) compassValueEl.textContent = `${Math.round(smoothCompassHeading)}°`;
     if (tiltXEl) tiltXEl.textContent = `${Math.round(smoothTiltX)}°`;
     if (tiltYEl) tiltYEl.textContent = `${Math.round(smoothTiltY)}°`;
@@ -656,77 +669,42 @@ function updateSensorDisplaySmooth() {
 
 // 針の位置更新（新システム対応）
 function updateNeedlePositions() {
-    // チュートリアル（ステージ0）の針
-    const tutorialCompass = document.getElementById('compass-value');
-    if (tutorialCompass) {
-        tutorialCompass.textContent = `${Math.round(smoothCompassHeading)}°`;
-    }
-    
-    // 現在のステージの針を更新
+    // 現在のステージの針のみを更新
     if (currentStage > 0) {
         const stageDef = STAGE_DEFINITIONS[currentStage];
-        if (stageDef) {
-            switch (stageDef.type) {
-                case 'compass':
-                    const compassNeedleEl = document.getElementById(`compass-needle-${currentStage}`);
-                    const compassDisplayEl = document.getElementById(`compass-display-${currentStage}`);
-                    if (compassNeedleEl) {
-                        compassNeedleEl.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
-                    }
-                    if (compassDisplayEl) {
-                        compassDisplayEl.textContent = `${Math.round(smoothCompassHeading)}°`;
-                    }
-                    break;
-                    
-                case 'direction':
-                    const directionNeedleEl = document.getElementById(`direction-needle-${currentStage}`);
-                    const directionCompassDisplayEl = document.getElementById(`direction-compass-display-${currentStage}`);
-                    if (directionNeedleEl) {
-                        directionNeedleEl.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
-                    }
-                    if (directionCompassDisplayEl) {
-                        directionCompassDisplayEl.textContent = `${Math.round(smoothCompassHeading)}°`;
-                    }
-                    break;
-                    
-                case 'compound':
-                    const miniNeedleEl = document.getElementById(`mini-compass-needle-${currentStage}`);
-                    const miniDisplayEl = document.getElementById(`mini-compass-display-${currentStage}`);
-                    if (miniNeedleEl) {
-                        miniNeedleEl.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
-                    }
-                    if (miniDisplayEl) {
-                        miniDisplayEl.textContent = `${Math.round(smoothCompassHeading)}°`;
-                    }
-                    break;
+        if (!stageDef) return;
+        
+        // コンパス系の針
+        if (['compass', 'direction', 'compound'].includes(stageDef.type)) {
+            const needleId = stageDef.type === 'compass' ? `compass-needle-${currentStage}` :
+                           stageDef.type === 'direction' ? `direction-needle-${currentStage}` :
+                           `mini-compass-needle-${currentStage}`;
+            
+            const displayId = stageDef.type === 'compass' ? `compass-display-${currentStage}` :
+                            stageDef.type === 'direction' ? `direction-compass-display-${currentStage}` :
+                            `mini-compass-display-${currentStage}`;
+            
+            const needleEl = document.getElementById(needleId);
+            const displayEl = document.getElementById(displayId);
+            
+            if (needleEl) {
+                needleEl.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
+            }
+            if (displayEl) {
+                displayEl.textContent = `${Math.round(smoothCompassHeading)}°`;
             }
         }
-    }
-    
-    // 水平バブルの更新（新システム対応）
-    if (currentStage > 0) {
-        const stageDef = STAGE_DEFINITIONS[currentStage];
-        if (stageDef && (stageDef.type === 'level' || stageDef.type === 'compound')) {
+        
+        // 水平バブルの更新
+        if (['level', 'compound'].includes(stageDef.type)) {
             const levelBubble = document.getElementById(`level-bubble-${currentStage}`);
             if (levelBubble) {
-                // 傾きに基づいてバブルの位置を計算
-                const maxOffset = 80; // ピクセル
+                const maxOffset = 40;
                 const offsetX = Math.max(-maxOffset, Math.min(maxOffset, smoothTiltY * 2));
                 const offsetY = Math.max(-maxOffset, Math.min(maxOffset, smoothTiltX * 2));
-                
                 levelBubble.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
             }
         }
-    }
-    
-    // ステージ5のミニコンパス針
-    const miniCompassNeedle = document.getElementById('mini-compass-needle');
-    if (miniCompassNeedle) {
-        miniCompassNeedle.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
-    }
-    const miniCompassDisplay = document.getElementById('mini-compass-display');
-    if (miniCompassDisplay) {
-        miniCompassDisplay.textContent = `${Math.round(smoothCompassHeading)}°`;
     }
 }
 
@@ -1246,18 +1224,10 @@ function handleCompassLogic(stageDef) {
     const tolerance = stageDef.tolerance;
     
     // UI要素を取得
-    const needleEl = document.getElementById(`compass-needle-${stageNum}`);
-    const displayEl = document.getElementById(`compass-display-${stageNum}`);
     const progressEl = document.getElementById(`hold-progress-${stageNum}`);
     const timerEl = document.getElementById(`hold-timer-${stageNum}`);
     
-    // 針の更新
-    if (needleEl) {
-        needleEl.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
-    }
-    if (displayEl) {
-        displayEl.textContent = `${Math.round(smoothCompassHeading)}°`;
-    }
+    // 針の更新は updateNeedlePositions() で処理されるため削除
     
     // 目標角度との差を計算
     const angleDiff = Math.abs(getShortestAngleDifference(smoothCompassHeading, target));
@@ -1297,19 +1267,11 @@ function handleDirectionLogic(stageDef) {
     const tolerance = stageDef.tolerance;
     
     // UI要素を取得
-    const needleEl = document.getElementById(`direction-needle-${stageNum}`);
-    const displayEl = document.getElementById(`direction-compass-display-${stageNum}`);
     const currentDirEl = document.getElementById(`current-direction-${stageNum}`);
     const accuracyEl = document.getElementById(`accuracy-indicator-${stageNum}`);
     const textEl = document.getElementById(`accuracy-text-${stageNum}`);
     
-    // 針の更新
-    if (needleEl) {
-        needleEl.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
-    }
-    if (displayEl) {
-        displayEl.textContent = `${Math.round(smoothCompassHeading)}°`;
-    }
+    // 針の更新は updateNeedlePositions() で処理されるため削除
     
     // 現在の方角を表示
     const direction = getDirectionFromHeading(smoothCompassHeading);
@@ -1350,7 +1312,6 @@ function handleLevelLogic(stageDef) {
     const requiredTime = stageDef.holdTime;
     
     // UI要素を取得
-    const bubbleEl = document.getElementById(`level-bubble-${stageNum}`);
     const indicatorEl = document.getElementById(`level-indicator-${stageNum}`);
     const timerEl = document.getElementById(`level-timer-${stageNum}`);
     const tiltEl = document.getElementById(`tilt-magnitude-${stageNum}`);
@@ -1361,13 +1322,7 @@ function handleLevelLogic(stageDef) {
     
     if (tiltEl) tiltEl.textContent = `傾き: ${Math.round(tiltMagnitude)}°`;
     
-    // バブルの位置更新
-    if (bubbleEl) {
-        const maxOffset = 40;
-        const offsetX = Math.max(-maxOffset, Math.min(maxOffset, smoothTiltX * 4));
-        const offsetY = Math.max(-maxOffset, Math.min(maxOffset, smoothTiltY * 4));
-        bubbleEl.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
-    }
+    // バブルの位置更新は updateNeedlePositions() で処理されるため削除
     
     if (isLevel && !stageStates.isHolding) {
         stageStates.isHolding = true;
@@ -1436,16 +1391,8 @@ function handleCompoundLogic(stageDef) {
     const levelEl = document.getElementById(`level-indicator-${stageNum}`);
     const shakeEl = document.getElementById(`shake-indicator-${stageNum}`);
     const statusEl = document.getElementById(`final-status-${stageNum}`);
-    const needleEl = document.getElementById(`mini-compass-needle-${stageNum}`);
-    const displayEl = document.getElementById(`mini-compass-display-${stageNum}`);
     
-    // 針の更新
-    if (needleEl) {
-        needleEl.style.transform = `translate(-50%, -100%) rotate(${smoothCompassHeading}deg)`;
-    }
-    if (displayEl) {
-        displayEl.textContent = `${Math.round(smoothCompassHeading)}°`;
-    }
+    // 針の更新は updateNeedlePositions() で処理されるため削除
     
     // 条件チェック
     const directionDiff = Math.abs(getShortestAngleDifference(smoothCompassHeading, targetDirection));
