@@ -136,8 +136,8 @@ const STAGE_DEFINITIONS = {
     8: {
         title: 'ステージ 8',
         description: '砂時計チャレンジ',
-        subtitle: '端末を傾けて砂時計の砂を落とそう',
-        details: '端末を逆さにすると砂も逆向きに落ちます。砂が全部落ちたらクリア！',
+        subtitle: 'スマホをひっくり返して砂時計の砂を落とそう',
+        details: 'スマホを逆さにすると砂も逆向きに落ちます。砂が全部落ちたらクリア！',
         type: 'hourglass',
         totalSand: 1000,        // 砂の総数
         sandFallSpeed: 2,       // 砂の落下速度
@@ -201,427 +201,7 @@ function performVibration(duration) {
 }
 
 // DOM要素の取得（グローバル変数として保持）
-let stageInfo, permissionModal, successModal, requestPermissionBtn, nextStageBtn, tutorialNextBtn, successMessage;
-
-// 必要なHTML要素を動的に作成
-function createRequiredHTMLElements() {
-    console.log('🏗️ 必要なHTML要素を作成中...');
-    
-    // ゲームコンテナがない場合は作成
-    if (!document.getElementById('game-container')) {
-        const gameContainer = document.createElement('div');
-        gameContainer.id = 'game-container';
-        gameContainer.style.cssText = `
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #1e3c72, #2a5298);
-            color: white;
-            min-height: 100vh;
-            padding: 20px;
-            box-sizing: border-box;
-        `;
-        document.body.appendChild(gameContainer);
-    }
-    
-    const container = document.getElementById('game-container');
-    
-    // ステージ情報表示
-    if (!document.getElementById('current-stage')) {
-        const stageInfo = document.createElement('div');
-        stageInfo.id = 'current-stage';
-        stageInfo.style.cssText = `
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            color: #fff;
-        `;
-        stageInfo.textContent = 'ステージ 0';
-        container.appendChild(stageInfo);
-    }
-    
-    // 動的ステージコンテナ
-    if (!document.getElementById('dynamic-stages-container')) {
-        const stagesContainer = document.createElement('div');
-        stagesContainer.id = 'dynamic-stages-container';
-        stagesContainer.style.cssText = `
-            position: relative;
-            margin: 20px 0;
-        `;
-        container.appendChild(stagesContainer);
-    }
-    
-    // ステージ0（チュートリアル）
-    if (!document.getElementById('stage-0')) {
-        const stage0 = document.createElement('div');
-        stage0.id = 'stage-0';
-        stage0.className = 'stage active';
-        stage0.style.cssText = `
-            display: block;
-            text-align: center;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            margin: 20px 0;
-        `;
-        stage0.innerHTML = `
-            <div class="puzzle-content">
-                <h2>チュートリアル</h2>
-                <p>このゲームはスマートフォンのセンサーを使った謎解きゲームです。</p>
-                <p>まずはセンサーへのアクセス許可をお願いします。</p>
-                
-                <div class="sensor-display">
-                    <div class="sensor-item">
-                        <span>コンパス: </span>
-                        <span id="compass-value">0°</span>
-                    </div>
-                    <div class="sensor-item">
-                        <span>傾きX: </span>
-                        <span id="tilt-x">0°</span>
-                    </div>
-                    <div class="sensor-item">
-                        <span>傾きY: </span>
-                        <span id="tilt-y">0°</span>
-                    </div>
-                </div>
-                
-                <button id="tutorial-next" class="next-button" style="
-                    background: #4CAF50;
-                    color: white;
-                    border: none;
-                    padding: 15px 30px;
-                    font-size: 18px;
-                    border-radius: 5px;
-                    cursor: pointer;
-                    margin-top: 20px;
-                ">
-                    ゲームを始める
-                </button>
-            </div>
-        `;
-        container.appendChild(stage0);
-    }
-    
-    // センサー許可モーダル
-    if (!document.getElementById('permission-modal')) {
-        const permissionModal = document.createElement('div');
-        permissionModal.id = 'permission-modal';
-        permissionModal.className = 'modal active';
-        permissionModal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        `;
-        permissionModal.innerHTML = `
-            <div style="
-                background: white;
-                color: black;
-                padding: 30px;
-                border-radius: 10px;
-                text-align: center;
-                max-width: 400px;
-                margin: 20px;
-            ">
-                <h2>センサーアクセス許可</h2>
-                <p>このゲームを楽しむために、端末のセンサーへのアクセスを許可してください。</p>
-                <ul style="text-align: left; margin: 20px 0;">
-                    <li>デバイスの方向（コンパス）</li>
-                    <li>デバイスの動き（傾き・振動）</li>
-                    <li>カメラ（光センサー用）</li>
-                </ul>
-                <button id="request-permission" style="
-                    background: #2196F3;
-                    color: white;
-                    border: none;
-                    padding: 15px 30px;
-                    font-size: 18px;
-                    border-radius: 5px;
-                    cursor: pointer;
-                ">
-                    許可する
-                </button>
-            </div>
-        `;
-        document.body.appendChild(permissionModal);
-    }
-    
-    // 成功モーダル
-    if (!document.getElementById('success-modal')) {
-        const successModal = document.createElement('div');
-        successModal.id = 'success-modal';
-        successModal.className = 'modal';
-        successModal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        `;
-        successModal.innerHTML = `
-            <div style="
-                background: linear-gradient(135deg, #4CAF50, #45a049);
-                color: white;
-                padding: 30px;
-                border-radius: 10px;
-                text-align: center;
-                max-width: 400px;
-                margin: 20px;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            ">
-                <h2>🎉 ステージクリア！</h2>
-                <p id="success-message">おめでとうございます！</p>
-                <button id="next-stage-btn" style="
-                    background: #fff;
-                    color: #4CAF50;
-                    border: none;
-                    padding: 15px 30px;
-                    font-size: 18px;
-                    border-radius: 5px;
-                    cursor: pointer;
-                    font-weight: bold;
-                ">
-                    次のステージへ
-                </button>
-            </div>
-        `;
-        document.body.appendChild(successModal);
-    }
-    
-    // CSSスタイルを動的に追加
-    if (!document.getElementById('dynamic-styles')) {
-        const style = document.createElement('style');
-        style.id = 'dynamic-styles';
-        style.textContent = `
-            .stage { display: none; }
-            .stage.active { display: block; }
-            
-            .modal { opacity: 0; pointer-events: none; }
-            .modal.active { opacity: 1; pointer-events: all; }
-            
-            .compass-circle {
-                width: 200px;
-                height: 200px;
-                border: 3px solid #fff;
-                border-radius: 50%;
-                position: relative;
-                margin: 20px auto;
-                background: rgba(255, 255, 255, 0.1);
-            }
-            
-            .compass-needle {
-                position: absolute;
-                top: 10px;
-                left: 50%;
-                width: 3px;
-                height: 80px;
-                background: #ff4444;
-                transform-origin: 50% 90px;
-                transform: translateX(-50%) rotate(0deg);
-                transition: transform 0.1s ease;
-            }
-            
-            .compass-directions {
-                position: absolute;
-                width: 100%;
-                height: 100%;
-            }
-            
-            .direction {
-                position: absolute;
-                font-weight: bold;
-                font-size: 16px;
-            }
-            
-            .direction.north { top: -5px; left: 50%; transform: translateX(-50%); }
-            .direction.east { right: -5px; top: 50%; transform: translateY(-50%); }
-            .direction.south { bottom: -5px; left: 50%; transform: translateX(-50%); }
-            .direction.west { left: -5px; top: 50%; transform: translateY(-50%); }
-            
-            .progress-bar {
-                width: 100%;
-                height: 20px;
-                background: rgba(255, 255, 255, 0.2);
-                border-radius: 10px;
-                overflow: hidden;
-                margin: 10px 0;
-            }
-            
-            .progress-fill {
-                height: 100%;
-                background: #4CAF50;
-                width: 0%;
-                transition: width 0.3s ease;
-            }
-            
-            .sensor-item {
-                margin: 10px 0;
-                font-size: 18px;
-            }
-            
-            .next-button:hover {
-                transform: scale(1.05);
-                transition: transform 0.2s ease;
-            }
-            
-            .compass-value-large {
-                font-size: 24px;
-                font-weight: bold;
-                margin: 10px 0;
-            }
-            
-            /* 砂時計ステージのスタイル */
-            .hourglass-container {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 20px;
-            }
-            
-            .hourglass-display {
-                text-align: center;
-            }
-            
-            .hourglass-frame {
-                width: 120px;
-                height: 200px;
-                position: relative;
-                margin: 20px auto;
-                border: 3px solid #fff;
-                background: rgba(255, 255, 255, 0.1);
-                clip-path: polygon(
-                    20% 0%, 80% 0%, 80% 40%, 60% 50%, 80% 60%, 80% 100%, 20% 100%, 20% 60%, 40% 50%, 20% 40%
-                );
-            }
-            
-            .hourglass-top, .hourglass-bottom {
-                position: absolute;
-                width: 100%;
-                height: 45%;
-                overflow: hidden;
-            }
-            
-            .hourglass-top {
-                top: 0;
-                clip-path: polygon(20% 0%, 80% 0%, 60% 100%, 40% 100%);
-            }
-            
-            .hourglass-bottom {
-                bottom: 0;
-                clip-path: polygon(40% 0%, 60% 0%, 80% 100%, 20% 100%);
-            }
-            
-            .hourglass-neck {
-                position: absolute;
-                top: 45%;
-                left: 40%;
-                width: 20%;
-                height: 10%;
-                overflow: hidden;
-            }
-            
-            .sand-level {
-                position: absolute;
-                bottom: 0;
-                width: 100%;
-                background: linear-gradient(45deg, #f4e4bc, #e6d59a);
-                transition: height 0.5s ease;
-                border-radius: 2px 2px 0 0;
-            }
-            
-            .sand-particles {
-                position: absolute;
-                width: 100%;
-                height: 100%;
-                pointer-events: none;
-            }
-            
-            .sand-stream {
-                position: absolute;
-                width: 100%;
-                height: 100%;
-                background: linear-gradient(to bottom, #f4e4bc, rgba(244, 228, 188, 0));
-                opacity: 0;
-                transition: opacity 0.3s ease;
-            }
-            
-            .sand-stream.active {
-                opacity: 1;
-            }
-            
-            .hourglass-info {
-                margin: 15px 0;
-                font-size: 14px;
-            }
-            
-            .flip-indicator {
-                font-size: 16px;
-                margin: 10px 0;
-                padding: 10px;
-                background: rgba(255, 255, 255, 0.1);
-                border-radius: 5px;
-            }
-            
-            .sand-progress {
-                margin: 8px 0;
-                font-family: monospace;
-            }
-            
-            .completion-percentage {
-                font-size: 18px;
-                font-weight: bold;
-                color: #4CAF50;
-            }
-            
-            .hourglass-instructions {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-                margin: 15px 0;
-            }
-            
-            .instruction-item {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                padding: 8px;
-                background: rgba(255, 255, 255, 0.1);
-                border-radius: 5px;
-                font-size: 14px;
-            }
-            
-            .instruction-icon {
-                font-size: 18px;
-                min-width: 30px;
-            }
-            
-            .hourglass-controls {
-                margin: 15px 0;
-            }
-            
-            /* 砂時計が逆さの時のスタイル */
-            .hourglass-frame.flipped {
-                transform: rotate(180deg);
-                transition: transform 0.8s ease;
-            }
-        `;
-        document.head.appendChild(style);
-    }
-    
-    console.log('✅ HTML要素の作成完了');
-}
+let stageInfo, permissionModal, successModal, requestPermissionBtn, nextStageBtn, tutorialNextBtn;
 
 // DOM要素を安全に取得する関数
 function initDOMElements() {
@@ -676,9 +256,6 @@ function initGame() {
     console.log('🎮 ゲームを初期化中...');
     
     try {
-        // 必要なHTML要素を動的に作成
-        createRequiredHTMLElements();
-        
         // DOM要素の初期化
         if (!initDOMElements()) {
             throw new Error('DOM要素の取得に失敗しました');
@@ -1492,8 +1069,8 @@ function createHourglassStageHTML(stageNum) {
         <div class="puzzle-content">
             <h2>ステージ ${stageNum}</h2>
             <p><strong>砂時計チャレンジ</strong></p>
-            <p>端末を傾けて砂時計の砂を落としましょう。</p>
-            <p>端末を逆さにすると砂も逆向きに落ちます。砂が全部落ちたらクリア！</p>
+            <p>スマホをひっくり返して砂時計の砂を落としましょう。</p>
+            <p>スマホを逆さにすると砂も逆向きに落ちます。砂が全部落ちたらクリア！</p>
             
             <div class="hourglass-container">
                 <div class="hourglass-display" id="hourglass-display-${stageNum}">
@@ -1518,7 +1095,7 @@ function createHourglassStageHTML(stageNum) {
                     
                     <div class="hourglass-info">
                         <div class="flip-indicator" id="flip-indicator-${stageNum}">
-                            📱 端末を傾けてください
+                            📱 スマホを傾けてください
                         </div>
                         <div class="sand-progress" id="sand-progress-${stageNum}">
                             上: <span id="top-sand-count-${stageNum}">1000</span> / 
@@ -1533,7 +1110,7 @@ function createHourglassStageHTML(stageNum) {
                 <div class="hourglass-instructions">
                     <div class="instruction-item">
                         <span class="instruction-icon">📱↕️</span>
-                        <span>端末を上下に傾けて砂を落とす</span>
+                        <span>スマホを上下に傾けて砂を落とす</span>
                     </div>
                     <div class="instruction-item">
                         <span class="instruction-icon">🔄</span>
@@ -2003,7 +1580,7 @@ function handleMorseLogic(stageDef) {
 function handleHourglassLogic(stageDef) {
     const stageNum = currentStage;
     
-    // 端末の傾きを検知（Z軸回転で逆さを判定）
+    // スマホの傾きを検知（X軸回転で逆さを判定）
     const isFlipped = Math.abs(smoothTiltX) > 150; // 150度以上傾いたら逆さ
     
     // UI要素を取得
@@ -2479,8 +2056,8 @@ function stageComplete(message) {
     console.log(`📊 現在の状態: currentStage=${currentStage}, TOTAL_STAGES=${TOTAL_STAGES}`);
     
     // 成功メッセージ要素を取得（グローバル変数が失効している場合の対策）
-    const successMessageEl = document.getElementById('success-message');
-    const successModalEl = document.getElementById('success-modal');
+    const successMessageEl = successMessage || document.getElementById('success-message');
+    const successModalEl = successModal || document.getElementById('success-modal');
     
     if (successMessageEl) {
         successMessageEl.textContent = message;
@@ -2505,7 +2082,7 @@ function goToNextStage() {
     console.log('🎯 次のステージへ進みます');
     
     // 成功モーダルを閉じる
-    const successModalEl = document.getElementById('success-modal');
+    const successModalEl = successModal || document.getElementById('success-modal');
     if (successModalEl) {
         successModalEl.classList.remove('active');
     }

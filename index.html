@@ -3,103 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NazoG - センサーパズルゲーム</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #1e3c72, #2a5298);
-            color: white;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        /* 基本的なロード画面 */
-        .loading {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #1e3c72, #2a5298);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-        }
-
-        .loading h1 {
-            font-size: 48px;
-            margin-bottom: 20px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }
-
-        .loading p {
-            font-size: 18px;
-            opacity: 0.8;
-        }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top: 4px solid white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 20px 0;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* レスポンシブ対応 */
-        @media (max-width: 480px) {
-            .loading h1 {
-                font-size: 36px;
-            }
-            
-            .loading p {
-                font-size: 16px;
-                text-align: center;
-                padding: 0 20px;
-            }
-        }
-    </style>
+    <title>謎解きセンサーゲーム</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- 初期ローディング画面 -->
-    <div class="loading" id="loading-screen">
-        <h1>🎮 NazoG</h1>
-        <div class="spinner"></div>
-        <p>センサーパズルゲームを読み込み中...</p>
+    <div id="game-container">
+        <header>
+            <h1>謎解きセンサーゲーム</h1>
+            <div id="stage-info">
+                <span id="current-stage">ステージ 0</span>
+            </div>
+            
+            <!-- ステージ選択ボタン -->
+            <div id="stage-selector">
+                <div class="stage-buttons">
+                    <button class="stage-btn" onclick="goToStage(0)" id="stage-btn-0">T</button>
+                    <button class="stage-btn" onclick="goToStage(1)" id="stage-btn-1">1</button>
+                    <button class="stage-btn" onclick="goToStage(2)" id="stage-btn-2">2</button>
+                    <button class="stage-btn" onclick="goToStage(3)" id="stage-btn-3">3</button>
+                    <button class="stage-btn" onclick="goToStage(4)" id="stage-btn-4">4</button>
+                    <button class="stage-btn" onclick="goToStage(5)" id="stage-btn-5">5</button>
+                                         <button class="stage-btn" onclick="goToStage(6)" id="stage-btn-6">6</button>
+                     <button class="stage-btn" onclick="goToStage(7)" id="stage-btn-7">7</button>
+                     <button class="stage-btn" onclick="goToStage(8)" id="stage-btn-8">8</button>
+                </div>
+            </div>
+        </header>
+
+        <main id="game-screen">
+            <!-- チュートリアル -->
+            <div id="stage-0" class="stage active">
+                <div class="puzzle-content">
+                    <h2>チュートリアル</h2>
+                    <p>このゲームはスマートフォンのセンサーを使った謎解きです。</p>
+                    <p>デバイスを動かしたり、向きを変えたりして謎を解いてください。</p>
+                    <div class="sensor-display">
+                        <div class="sensor-item">
+                            <span>コンパス:</span>
+                            <span id="compass-value">0°</span>
+                        </div>
+                        <div class="sensor-item">
+                            <span>傾きX:</span>
+                            <span id="tilt-x">0°</span>
+                        </div>
+                        <div class="sensor-item">
+                            <span>傾きY:</span>
+                            <span id="tilt-y">0°</span>
+                        </div>
+                    </div>
+                    <p>センサーの値が変化するのを確認したら、次のステージに進みましょう。</p>
+                    <button id="tutorial-next" class="next-button">次のステージへ</button>
+                </div>
+            </div>
+            
+            <!-- 動的ステージコンテナ -->
+            <div id="dynamic-stages-container"></div>
+        </main>
+
+        <!-- 成功メッセージ -->
+        <div id="success-modal" class="modal">
+            <div class="modal-content">
+                <h3>ステージクリア！</h3>
+                <p id="success-message">おめでとうございます！</p>
+                <button id="next-stage-btn" class="next-button">次のステージへ</button>
+            </div>
+        </div>
+
+        <!-- センサー許可要求モーダル -->
+        <div id="permission-modal" class="modal active">
+            <div class="modal-content">
+                <h3>センサーへのアクセス許可が必要です</h3>
+                <p>このゲームはスマートフォンのセンサーを使用します。</p>
+                <p>センサーへのアクセスを許可してください。</p>
+                <button id="request-permission" class="next-button">許可する</button>
+            </div>
+        </div>
     </div>
 
-    <!-- ゲームコンテンツはJavaScriptで動的に生成されます -->
-
     <script src="script.js"></script>
-    
-    <script>
-        // ローディング画面を非表示にする
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const loadingScreen = document.getElementById('loading-screen');
-                if (loadingScreen) {
-                    loadingScreen.style.opacity = '0';
-                    loadingScreen.style.transition = 'opacity 0.5s ease';
-                    setTimeout(() => {
-                        loadingScreen.style.display = 'none';
-                    }, 500);
-                }
-            }, 1000); // 1秒間表示
-        });
-    </script>
 </body>
-</html>
+</html> 
