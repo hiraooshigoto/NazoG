@@ -387,7 +387,7 @@ function initGame() {
 
 // センサー許可要求
 async function requestSensorPermission() {
-    console.log('センサー許可を要求中...');
+    console.log('🔐 センサー許可を要求中...');
     console.log('User Agent:', navigator.userAgent);
     
     try {
@@ -395,84 +395,91 @@ async function requestSensorPermission() {
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         const isAndroid = /Android/.test(navigator.userAgent);
         
-        console.log('デバイス判定:', { isIOS, isAndroid });
+        console.log('📱 デバイス判定:', { isIOS, isAndroid });
         
         // iOS 13+ でのセンサー許可要求
         if (isIOS && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            console.log('iOS 13+ センサー許可要求開始');
+            console.log('🍎 iOS 13+ センサー許可要求開始');
             
-            try {
-                // DeviceOrientationEventの許可要求
-                const orientationPermission = await DeviceOrientationEvent.requestPermission();
-                console.log('DeviceOrientation許可結果:', orientationPermission);
-                
-                // DeviceMotionEventの許可要求（利用可能な場合）
-                let motionPermission = 'granted';
-                if (typeof DeviceMotionEvent.requestPermission === 'function') {
-                    motionPermission = await DeviceMotionEvent.requestPermission();
-                    console.log('DeviceMotion許可結果:', motionPermission);
-                }
-                
-                if (orientationPermission === 'granted') {
-                    console.log('✅ iOS センサー許可成功');
-                    permissionGranted = true;
-                    startSensorListening();
-                    closePermissionModal();
-                    return;
-                } else {
-                    console.log('❌ iOS センサー許可拒否');
-                    alert('センサーへのアクセスが拒否されました。\n設定でこのサイトのモーションとセンサーへのアクセスを許可してください。');
-                    return;
-                }
-            } catch (error) {
-                console.error('iOS許可要求エラー:', error);
-                alert('センサー許可の要求中にエラーが発生しました。\nページを再読み込みして再試行してください。');
+            const orientationPermission = await DeviceOrientationEvent.requestPermission();
+            console.log('📐 DeviceOrientation許可結果:', orientationPermission);
+            
+            // DeviceMotionEventの許可要求（利用可能な場合）
+            let motionPermission = 'granted';
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                motionPermission = await DeviceMotionEvent.requestPermission();
+                console.log('🏃 DeviceMotion許可結果:', motionPermission);
+            }
+            
+            if (orientationPermission === 'granted') {
+                console.log('✅ iOS センサー許可成功');
+                permissionGranted = true;
+                startSensorListening();
+                closePermissionModal();
                 return;
+            } else {
+                console.log('❌ iOS センサー許可拒否');
+                throw new Error('センサーアクセスが拒否されました');
             }
         } 
         // Android または旧iOS
         else {
-            console.log('Android/旧iOS - 直接センサー開始');
+            console.log('🤖 Android/旧iOS - 直接センサー開始');
             permissionGranted = true;
             startSensorListening();
             closePermissionModal();
-            
-            // 動作確認用のテスト
-            setTimeout(() => {
-                console.log('3秒後のセンサー値チェック:', { compassHeading, tiltX, tiltY });
-                if (compassHeading === 0 && tiltX === 0 && tiltY === 0) {
-                    console.warn('センサー値が0のまま');
-                    // ダミー値を設定してテスト
-                    compassHeading = Math.floor(Math.random() * 360);
-                    tiltX = Math.floor(Math.random() * 20) - 10;
-                    tiltY = Math.floor(Math.random() * 20) - 10;
-                    updateSensorDisplay();
-                    console.log('ダミー値を設定:', { compassHeading, tiltX, tiltY });
-                }
-            }, 3000);
         }
         
-            } catch (error) {
-        console.error('センサー許可処理エラー:', error);
+    } catch (error) {
+        console.error('❌ センサー許可処理エラー:', error);
         
-        // 緊急フォールバック
-        console.log('緊急フォールバック実行');
+        // フォールバック: デモモードで開始
+        console.log('🔧 デモモードで開始');
         permissionGranted = true;
         closePermissionModal();
-        
-        // テスト用のダミー値を設定（モバイルデバッグ用）
-        let dummyInterval = setInterval(() => {
-            compassHeading = (compassHeading + 1) % 360;
-            tiltX = Math.sin(Date.now() / 1000) * 5;
-            tiltY = Math.cos(Date.now() / 1000) * 5;
-            
-            // アニメーション開始
-            if (!animationFrameId) {
-                startSmoothAnimation();
-                clearInterval(dummyInterval); // 一度アニメーションが始まったらダミー値は停止
-            }
-        }, 100);
+        startDemoMode();
     }
+}
+
+// デモモード（センサーが利用できない場合のフォールバック）
+function startDemoMode() {
+    console.log('🎮 デモモード開始');
+    
+    // デモ用のランダム値を継続的に更新
+    let demoAngle = 0;
+    let demoTiltX = 0;
+    let demoTiltY = 0;
+    
+    const demoInterval = setInterval(() => {
+        // ゆっくりと変化するデモ値
+        demoAngle = (demoAngle + 2) % 360;
+        demoTiltX = Math.sin(Date.now() / 3000) * 10;
+        demoTiltY = Math.cos(Date.now() / 2500) * 8;
+        
+        // センサー値を更新
+        compassHeading = Math.round(demoAngle);
+        tiltX = Math.round(demoTiltX);
+        tiltY = Math.round(demoTiltY);
+        
+        // アニメーション開始
+        if (!animationFrameId) {
+            startSmoothAnimation();
+        }
+    }, 100);
+    
+    // デモモードの表示
+    setTimeout(() => {
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed; top: 20px; left: 20px; right: 20px;
+            background: rgba(255, 165, 0, 0.9); color: white; padding: 15px;
+            border-radius: 5px; z-index: 10000; font-size: 14px; text-align: center;
+        `;
+        modal.innerHTML = '🎮 デモモード: センサーの代わりに疑似データを使用中';
+        document.body.appendChild(modal);
+        
+        setTimeout(() => modal.remove(), 5000);
+    }, 1000);
 }
 
 function closePermissionModal() {
@@ -636,6 +643,12 @@ function startSmoothAnimation() {
         // ステージロジックは頻度を下げて実行
         if (now - lastLogicTime > LOGIC_INTERVAL) {
             handleStageLogic();
+            
+            // デバッグパネルの更新（ステージロジックと同じタイミング）
+            if (debugMode) {
+                updateDebugPanel();
+            }
+            
             lastLogicTime = now;
         }
         
@@ -752,13 +765,22 @@ function handleStageLogic() {
     // ステージ定義を取得
     const stageDef = STAGE_DEFINITIONS[currentStage];
     if (!stageDef) {
-        console.error(`ステージ${currentStage}の定義が見つかりません`);
+        console.error(`❌ ステージ${currentStage}の定義が見つかりません`);
+        return;
+    }
+    
+    // 既にクリア済みの場合はスキップ
+    if (stageStates.currentCompleteFlag) {
         return;
     }
     
     // ステージロジックを実行
-    if (stageDef.logic) {
-        stageDef.logic(stageDef);
+    try {
+        if (stageDef.logic) {
+            stageDef.logic(stageDef);
+        }
+    } catch (error) {
+        console.error(`❌ ステージ${currentStage}のロジック実行エラー:`, error);
     }
 }
 
@@ -1227,20 +1249,25 @@ function handleCompassLogic(stageDef) {
     const progressEl = document.getElementById(`hold-progress-${stageNum}`);
     const timerEl = document.getElementById(`hold-timer-${stageNum}`);
     
-    // 針の更新は updateNeedlePositions() で処理されるため削除
-    
     // 目標角度との差を計算
     const angleDiff = Math.abs(getShortestAngleDifference(smoothCompassHeading, target));
     const isNearTarget = angleDiff <= tolerance;
+    
+    // デバッグ情報をログ出力（時々）
+    if (Math.random() < 0.01) { // 1%の確率でログ出力
+        console.log(`🧭 コンパス - 現在:${Math.round(smoothCompassHeading)}° 目標:${target}° 差:${Math.round(angleDiff)}° 許容:${tolerance}° 範囲内:${isNearTarget}`);
+    }
     
     if (isNearTarget && !stageStates.isHolding) {
         // 保持開始
         stageStates.isHolding = true;
         stageStates.holdStartTime = Date.now();
+        console.log(`✅ コンパス保持開始 - 目標角度内に入りました`);
     } else if (!isNearTarget && stageStates.isHolding) {
         // 保持中断
         stageStates.isHolding = false;
         stageStates.holdTimer = 0;
+        console.log(`❌ コンパス保持中断 - 目標角度から外れました`);
     }
     
     if (stageStates.isHolding) {
@@ -1248,15 +1275,16 @@ function handleCompassLogic(stageDef) {
         const progress = Math.min((holdTime / stageDef.holdTime) * 100, 100);
         
         if (progressEl) progressEl.style.width = `${progress}%`;
-        if (timerEl) timerEl.textContent = `${(holdTime / 1000).toFixed(1)}秒維持中`;
+        if (timerEl) timerEl.textContent = `${(holdTime / 1000).toFixed(1)}秒維持中 (${Math.round(angleDiff)}°差)`;
         
         if (holdTime >= stageDef.holdTime && !stageStates.currentCompleteFlag) {
             stageStates.currentCompleteFlag = true;
+            console.log(`🎉 ステージ${stageNum}クリア！`);
             stageComplete(`${stageDef.title}クリア！\n${target}°を3秒間維持できました！`);
         }
     } else {
         if (progressEl) progressEl.style.width = '0%';
-        if (timerEl) timerEl.textContent = '0.0秒維持中';
+        if (timerEl) timerEl.textContent = `0.0秒維持中 (${Math.round(angleDiff)}°差)`;
     }
 }
 
@@ -2168,6 +2196,12 @@ function hideDebugPanel() {
 
 // デバッグパネルの更新
 function updateDebugPanel() {
+    if (!debugMode) return;
+    
+    const debugPanel = document.getElementById('debug-panel');
+    if (!debugPanel) return;
+    
+    // 現在のステージ情報を更新
     const currentStageSpan = document.getElementById('debug-current-stage');
     if (currentStageSpan) {
         currentStageSpan.textContent = currentStage;
@@ -2178,6 +2212,65 @@ function updateDebugPanel() {
     buttons.forEach((btn, index) => {
         btn.disabled = (index === currentStage);
     });
+    
+    // 詳細情報の更新
+    const debugContent = debugPanel.querySelector('.debug-content');
+    if (!debugContent) return;
+    
+    // 現在のステージ定義を取得
+    const stageDef = STAGE_DEFINITIONS[currentStage];
+    
+    // 詳細情報エリアを探すか作成
+    let infoEl = debugContent.querySelector('.debug-info');
+    if (!infoEl) {
+        infoEl = document.createElement('div');
+        infoEl.className = 'debug-info';
+        debugContent.appendChild(infoEl);
+    }
+    
+    let stageSpecificInfo = '';
+    
+    if (stageDef) {
+        switch (stageDef.type) {
+            case 'compass':
+                const angleDiff = Math.abs(getShortestAngleDifference(smoothCompassHeading, stageDef.target));
+                stageSpecificInfo = `
+                    <br>コンパス情報:<br>
+                    • 目標: ${stageDef.target}° 許容: ±${stageDef.tolerance}°<br>
+                    • 角度差: ${Math.round(angleDiff)}° 範囲内: ${angleDiff <= stageDef.tolerance ? '✅' : '❌'}<br>
+                    • 保持中: ${stageStates.isHolding ? '✅' : '❌'}
+                `;
+                break;
+            case 'shake':
+            case 'compound':
+                stageSpecificInfo = `
+                    <br>シェイク情報:<br>
+                    • カウント: ${stageStates.shakeCount}<br>
+                    • 必要数: ${stageDef.requiredShakes || 'N/A'}
+                `;
+                break;
+            case 'level':
+                const tiltMagnitude = Math.sqrt(smoothTiltX * smoothTiltX + smoothTiltY * smoothTiltY);
+                stageSpecificInfo = `
+                    <br>水平情報:<br>
+                    • 傾き量: ${Math.round(tiltMagnitude)}° 許容: ${stageDef.tolerance}°<br>
+                    • 水平: ${tiltMagnitude <= stageDef.tolerance ? '✅' : '❌'}
+                `;
+                break;
+        }
+    }
+    
+    infoEl.innerHTML = `
+        <small>
+            センサー値:<br>
+            • コンパス: ${Math.round(smoothCompassHeading)}° (${Math.round(compassHeading)}°)<br>
+            • 傾きX: ${Math.round(smoothTiltX)}° (${Math.round(tiltX)}°)<br>
+            • 傾きY: ${Math.round(smoothTiltY)}° (${Math.round(tiltY)}°)<br>
+            状態: ${permissionGranted ? '許可済み' : '未許可'} | ${animationFrameId ? 'アニメ中' : '停止中'}<br>
+            クリア済み: ${stageStates.currentCompleteFlag ? '✅' : '❌'}
+            ${stageSpecificInfo}
+        </small>
+    `;
 }
 
 // ゲームリセット
@@ -2225,6 +2318,12 @@ document.addEventListener('keydown', (event) => {
     // デバッグコードが入力された場合
     if (debugKeySequence === DEBUG_KEY_CODE) {
         toggleDebugMode();
+        debugKeySequence = '';
+    }
+    
+    // テストモードコード: T-E-S-T
+    if (debugKeySequence === 'test') {
+        startTestMode();
         debugKeySequence = '';
     }
     
@@ -2517,5 +2616,79 @@ function lightSensorComplete() {
     setTimeout(() => {
         stageComplete('ステージ7クリア！\n光センサーチャレンジを完了しました！');
     }, 2000);
+}
+
+// ==================== テストモード機能 ====================
+
+// テストモード（各ステージの自動クリア機能）
+function startTestMode() {
+    console.log('🧪 テストモード開始');
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        background: rgba(0, 255, 255, 0.95); color: black; padding: 20px;
+        border-radius: 10px; z-index: 10000; font-size: 14px; text-align: center;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5); border: 2px solid #00cccc;
+    `;
+    modal.innerHTML = `
+        <h3>🧪 テストモード</h3>
+        <p>デバッグ用：ステージのクリア機能</p>
+        <button id="test-auto-clear" style="margin: 5px; padding: 10px; background: #ff6b6b; color: white; border: none; border-radius: 5px; cursor: pointer;">現在のステージをクリア</button><br>
+        <button id="test-all-stages" style="margin: 5px; padding: 10px; background: #4ecdc4; color: white; border: none; border-radius: 5px; cursor: pointer;">全ステージ順次クリア</button><br>
+        <button id="test-reset" style="margin: 5px; padding: 10px; background: #45b7d1; color: white; border: none; border-radius: 5px; cursor: pointer;">ゲームリセット</button><br>
+        <button id="test-close" style="margin: 5px; padding: 10px; background: #666; color: white; border: none; border-radius: 5px; cursor: pointer;">閉じる</button>
+    `;
+    document.body.appendChild(modal);
+    
+    // ボタンイベント
+    document.getElementById('test-auto-clear').onclick = () => {
+        if (currentStage === 0) {
+            goToNextStage();
+        } else {
+            stageStates.currentCompleteFlag = true;
+            stageComplete(`テストモード: ステージ${currentStage}を強制クリア`);
+        }
+        modal.remove();
+    };
+    
+    document.getElementById('test-all-stages').onclick = () => {
+        modal.remove();
+        let testStage = 1;
+        const testInterval = setInterval(() => {
+            if (testStage > TOTAL_STAGES - 1) {
+                clearInterval(testInterval);
+                console.log('🧪 全ステージテスト完了');
+                alert('🎉 全ステージテスト完了！');
+                return;
+            }
+            
+            console.log(`🧪 ステージ${testStage}をテスト中...`);
+            goToStage(testStage);
+            
+            setTimeout(() => {
+                stageStates.currentCompleteFlag = true;
+                stageComplete(`テストモード: ステージ${testStage}を自動クリア`);
+                
+                setTimeout(() => {
+                    const nextBtn = document.getElementById('next-stage-btn');
+                    if (nextBtn) {
+                        nextBtn.click();
+                    } else {
+                        goToNextStage();
+                    }
+                }, 1000);
+            }, 500);
+            
+            testStage++;
+        }, 3000);
+    };
+    
+    document.getElementById('test-reset').onclick = () => {
+        resetGame();
+        modal.remove();
+    };
+    
+    document.getElementById('test-close').onclick = () => modal.remove();
 }
 
