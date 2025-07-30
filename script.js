@@ -13,7 +13,7 @@ let permissionGranted = false;
 let debugMode = localStorage.getItem('nazoGameDebugMode') === 'true';
 let debugKeySequence = '';
 const DEBUG_KEY_CODE = 'debug';
-const TOTAL_STAGES = 9; // ステージ0（チュートリアル）+ ステージ1〜8
+const TOTAL_STAGES = 8; // ステージ0（チュートリアル）+ ステージ1〜7
 
 // 滑らかなアニメーション用
 let smoothCompassHeading = 0;
@@ -132,17 +132,6 @@ const STAGE_DEFINITIONS = {
         type: 'light',
         createHTML: () => createLightStageHTML(7),
         logic: (stage) => handleLightLogic(stage)
-    },
-    8: {
-        title: 'ステージ 8',
-        description: '砂時計チャレンジ',
-        subtitle: 'スマホをひっくり返して砂時計の砂を落とそう',
-        details: 'スマホを逆さにすると砂も逆向きに落ちます。砂が全部落ちたらクリア！',
-        type: 'hourglass',
-        totalSand: 1000,        // 砂の総数
-        sandFallSpeed: 2,       // 砂の落下速度
-        createHTML: () => createHourglassStageHTML(8),
-        logic: (stage) => handleHourglassLogic(stage)
     }
 };
 
@@ -153,14 +142,7 @@ let stageStates = {
     holdStartTime: 0,
     isHolding: false,
     currentWord: '',
-    lightLevels: [],
-    hourglass: {
-        topSand: 1000,      // 上の容器の砂
-        bottomSand: 0,      // 下の容器の砂
-        isFlipped: false,   // 砂時計が逆さかどうか
-        fallRate: 1,        // 砂の落下速度
-        animationId: null   // アニメーションID
-    }
+    lightLevels: []
 };
 
 // バイブレーション設定
@@ -1063,75 +1045,6 @@ function createMorseStageHTML(stageNum) {
     `;
 }
 
-// ステージ8: 砂時計チャレンジのHTML生成
-function createHourglassStageHTML(stageNum) {
-    return `
-        <div class="puzzle-content">
-            <h2>ステージ ${stageNum}</h2>
-            <p><strong>砂時計チャレンジ</strong></p>
-            <p>スマホをひっくり返して砂時計の砂を落としましょう。</p>
-            <p>スマホを逆さにすると砂も逆向きに落ちます。砂が全部落ちたらクリア！</p>
-            
-            <div class="hourglass-container">
-                <div class="hourglass-display" id="hourglass-display-${stageNum}">
-                    <div class="hourglass-frame">
-                        <!-- 上の容器 -->
-                        <div class="hourglass-top" id="hourglass-top-${stageNum}">
-                            <div class="sand-level" id="sand-top-${stageNum}"></div>
-                            <div class="sand-particles" id="particles-top-${stageNum}"></div>
-                        </div>
-                        
-                        <!-- 中央の穴 -->
-                        <div class="hourglass-neck">
-                            <div class="sand-stream" id="sand-stream-${stageNum}"></div>
-                        </div>
-                        
-                        <!-- 下の容器 -->
-                        <div class="hourglass-bottom" id="hourglass-bottom-${stageNum}">
-                            <div class="sand-level" id="sand-bottom-${stageNum}"></div>
-                            <div class="sand-particles" id="particles-bottom-${stageNum}"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="hourglass-info">
-                        <div class="flip-indicator" id="flip-indicator-${stageNum}">
-                            📱 スマホを傾けてください
-                        </div>
-                        <div class="sand-progress" id="sand-progress-${stageNum}">
-                            上: <span id="top-sand-count-${stageNum}">1000</span> / 
-                            下: <span id="bottom-sand-count-${stageNum}">0</span>
-                        </div>
-                        <div class="completion-percentage" id="completion-percentage-${stageNum}">
-                            進捗: 0%
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="hourglass-instructions">
-                    <div class="instruction-item">
-                        <span class="instruction-icon">📱↕️</span>
-                        <span>スマホを上下に傾けて砂を落とす</span>
-                    </div>
-                    <div class="instruction-item">
-                        <span class="instruction-icon">🔄</span>
-                        <span>逆さにすると砂の流れも逆転</span>
-                    </div>
-                    <div class="instruction-item">
-                        <span class="instruction-icon">⏱️</span>
-                        <span>砂が全部落ちたらクリア</span>
-                    </div>
-                </div>
-                
-                <div class="hourglass-controls">
-                    <button id="reset-hourglass-btn-${stageNum}" class="next-button">
-                        🔄 砂時計をリセット
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
 // ステージ7: 光センサーチャレンジのHTML生成
 function createLightStageHTML(stageNum) {
     return `
@@ -1227,8 +1140,8 @@ function initializeAllStages() {
     // 既存のステージをクリア
     container.innerHTML = '';
     
-    // ステージ1〜8を生成
-    for (let i = 1; i <= 8; i++) {
+    // ステージ1〜7を生成
+    for (let i = 1; i <= 7; i++) {
         const stageElement = createStage(i);
         if (stageElement) {
             container.appendChild(stageElement);
@@ -1267,9 +1180,6 @@ function setupStageSpecificListeners(stageNum) {
         case 'light':
             setupLightListeners(stageNum);
             break;
-        case 'hourglass':
-            setupHourglassListeners(stageNum);
-            break;
     }
 }
 
@@ -1302,19 +1212,6 @@ function setupMorseListeners(stageNum) {
         morseInput.addEventListener('input', () => {
             updateMorseHint(stageNum);
         });
-    }
-}
-
-// 砂時計のイベントリスナー設定
-function setupHourglassListeners(stageNum) {
-    const resetHourglassBtn = document.getElementById(`reset-hourglass-btn-${stageNum}`);
-    
-    if (resetHourglassBtn) {
-        resetHourglassBtn.addEventListener('click', () => {
-            console.log(`🔄 ステージ${stageNum}: 砂時計リセットボタンクリック`);
-            resetHourglass();
-        });
-        console.log(`✅ ステージ${stageNum}: 砂時計リセットボタンのイベントリスナー設定`);
     }
 }
 
@@ -1574,147 +1471,6 @@ function handleCompoundLogic(stageDef) {
 function handleMorseLogic(stageDef) {
     // モールス信号ステージは主にイベント駆動なので、
     // センサーデータに基づく定期処理は不要
-}
-
-// 砂時計ロジック処理
-function handleHourglassLogic(stageDef) {
-    const stageNum = currentStage;
-    
-    // スマホの傾きを検知（X軸回転で逆さを判定）
-    const isFlipped = Math.abs(smoothTiltX) > 150; // 150度以上傾いたら逆さ
-    
-    // UI要素を取得
-    const hourglassFrame = document.getElementById(`hourglass-display-${stageNum}`)?.querySelector('.hourglass-frame');
-    const flipIndicator = document.getElementById(`flip-indicator-${stageNum}`);
-    const topSandCount = document.getElementById(`top-sand-count-${stageNum}`);
-    const bottomSandCount = document.getElementById(`bottom-sand-count-${stageNum}`);
-    const completionPercentage = document.getElementById(`completion-percentage-${stageNum}`);
-    const sandTop = document.getElementById(`sand-top-${stageNum}`);
-    const sandBottom = document.getElementById(`sand-bottom-${stageNum}`);
-    const sandStream = document.getElementById(`sand-stream-${stageNum}`);
-    
-    // 逆さ状態の変化をチェック
-    if (isFlipped !== stageStates.hourglass.isFlipped) {
-        stageStates.hourglass.isFlipped = isFlipped;
-        console.log(`⌛ 砂時計状態変更: ${isFlipped ? '逆さ' : '正常'}`);
-        
-        // 砂の量を入れ替え
-        if (isFlipped) {
-            const temp = stageStates.hourglass.topSand;
-            stageStates.hourglass.topSand = stageStates.hourglass.bottomSand;
-            stageStates.hourglass.bottomSand = temp;
-        }
-    }
-    
-    // 視覚的な砂時計の回転
-    if (hourglassFrame) {
-        if (isFlipped) {
-            hourglassFrame.classList.add('flipped');
-        } else {
-            hourglassFrame.classList.remove('flipped');
-        }
-    }
-    
-    // 傾きに応じて砂の落下速度を調整
-    const tiltMagnitude = Math.abs(smoothTiltX);
-    let fallRate = 0;
-    
-    if (tiltMagnitude > 30) { // 30度以上傾けば砂が落ち始める
-        fallRate = Math.min(stageDef.sandFallSpeed * (tiltMagnitude / 90), stageDef.sandFallSpeed * 2);
-    }
-    
-    // 砂の落下処理
-    if (fallRate > 0 && stageStates.hourglass.topSand > 0) {
-        const sandToFall = Math.min(fallRate, stageStates.hourglass.topSand);
-        stageStates.hourglass.topSand -= sandToFall;
-        stageStates.hourglass.bottomSand += sandToFall;
-        
-        // 砂の流れの表示
-        if (sandStream) {
-            sandStream.classList.add('active');
-        }
-    } else {
-        // 砂の流れを非表示
-        if (sandStream) {
-            sandStream.classList.remove('active');
-        }
-    }
-    
-    // UI更新
-    const totalSand = stageDef.totalSand;
-    const topPercentage = (stageStates.hourglass.topSand / totalSand) * 100;
-    const bottomPercentage = (stageStates.hourglass.bottomSand / totalSand) * 100;
-    const completionPercent = Math.round(bottomPercentage);
-    
-    if (topSandCount) topSandCount.textContent = Math.round(stageStates.hourglass.topSand);
-    if (bottomSandCount) bottomSandCount.textContent = Math.round(stageStates.hourglass.bottomSand);
-    if (completionPercentage) completionPercentage.textContent = `進捗: ${completionPercent}%`;
-    
-    // 砂のレベル表示更新
-    if (sandTop) sandTop.style.height = `${topPercentage}%`;
-    if (sandBottom) sandBottom.style.height = `${bottomPercentage}%`;
-    
-    // 傾きインジケーター更新
-    if (flipIndicator) {
-        if (isFlipped) {
-            flipIndicator.textContent = '🔄 逆さま！砂が逆向きに落ちています';
-            flipIndicator.style.color = '#ff9800';
-        } else if (tiltMagnitude > 30) {
-            flipIndicator.textContent = `📱 傾き: ${Math.round(tiltMagnitude)}° - 砂が落下中！`;
-            flipIndicator.style.color = '#4CAF50';
-        } else {
-            flipIndicator.textContent = '📱 もっと傾けてください（30°以上）';
-            flipIndicator.style.color = '#fff';
-        }
-    }
-    
-    // クリア判定（砂が全部落ちた場合）
-    if (stageStates.hourglass.topSand <= 0 && !stageStates.currentCompleteFlag) {
-        stageStates.currentCompleteFlag = true;
-        console.log('🎉 砂時計チャレンジ完了！');
-        
-        // 砂の流れを停止
-        if (sandStream) {
-            sandStream.classList.remove('active');
-        }
-        
-        setTimeout(() => {
-            stageComplete(`${stageDef.title}クリア！\n砂時計の砂を全て落としました！\n🎊 素晴らしい！`);
-        }, 1500);
-    }
-}
-
-// 砂時計をリセット
-function resetHourglass() {
-    console.log('🔄 砂時計をリセット');
-    const stageDef = STAGE_DEFINITIONS[currentStage];
-    
-    if (stageDef && stageDef.type === 'hourglass') {
-        stageStates.hourglass.topSand = stageDef.totalSand;
-        stageStates.hourglass.bottomSand = 0;
-        stageStates.hourglass.isFlipped = false;
-        stageStates.currentCompleteFlag = false;
-        
-        // UI更新
-        const stageNum = currentStage;
-        const topSandCount = document.getElementById(`top-sand-count-${stageNum}`);
-        const bottomSandCount = document.getElementById(`bottom-sand-count-${stageNum}`);
-        const completionPercentage = document.getElementById(`completion-percentage-${stageNum}`);
-        const sandTop = document.getElementById(`sand-top-${stageNum}`);
-        const sandBottom = document.getElementById(`sand-bottom-${stageNum}`);
-        const sandStream = document.getElementById(`sand-stream-${stageNum}`);
-        const hourglassFrame = document.getElementById(`hourglass-display-${stageNum}`)?.querySelector('.hourglass-frame');
-        
-        if (topSandCount) topSandCount.textContent = stageDef.totalSand;
-        if (bottomSandCount) bottomSandCount.textContent = '0';
-        if (completionPercentage) completionPercentage.textContent = '進捗: 0%';
-        if (sandTop) sandTop.style.height = '100%';
-        if (sandBottom) sandBottom.style.height = '0%';
-        if (sandStream) sandStream.classList.remove('active');
-        if (hourglassFrame) hourglassFrame.classList.remove('flipped');
-        
-        console.log('✅ 砂時計リセット完了');
-    }
 }
 
 // 光センサーロジック処理
@@ -2144,7 +1900,7 @@ function updateStageDisplay() {
 
 // ステージ選択ボタンの状態更新
 function updateStageButtons() {
-    for (let i = 0; i <= 8; i++) {
+    for (let i = 0; i <= 7; i++) {
         const btn = document.getElementById(`stage-btn-${i}`);
         if (btn) {
             // 全てのクラスをリセット
@@ -2263,14 +2019,6 @@ function resetStageState() {
                 stageStates.lightLevels = [];
                 stopLightSensor(); // カメラを停止
                 console.log('🔄 光センサーステージをリセット');
-                break;
-                
-            case 'hourglass':
-                // 砂時計ステージのリセット
-                stageStates.hourglass.topSand = stageDef.totalSand;
-                stageStates.hourglass.bottomSand = 0;
-                stageStates.hourglass.isFlipped = false;
-                console.log('🔄 砂時計ステージをリセット');
                 break;
         }
     }
@@ -2509,17 +2257,6 @@ function updateDebugPanel() {
                     • 水平: ${tiltMagnitude <= stageDef.tolerance ? '✅' : '❌'}
                 `;
                 break;
-            case 'hourglass':
-                const hourglassTiltMagnitude = Math.abs(smoothTiltX);
-                const isFlipped = hourglassTiltMagnitude > 150;
-                stageSpecificInfo = `
-                    <br>砂時計情報:<br>
-                    • 上の砂: ${Math.round(stageStates.hourglass.topSand)}<br>
-                    • 下の砂: ${Math.round(stageStates.hourglass.bottomSand)}<br>
-                    • 傾き: ${Math.round(hourglassTiltMagnitude)}°<br>
-                    • 逆さ: ${isFlipped ? '✅' : '❌'}
-                `;
-                break;
         }
     }
     
@@ -2598,7 +2335,7 @@ document.addEventListener('keydown', (event) => {
     // デバッグモード時のホットキー
     if (debugMode) {
         // Ctrl+数字でステージ移動
-        if (event.ctrlKey && event.key >= '0' && event.key <= '8') {
+        if (event.ctrlKey && event.key >= '0' && event.key <= '6') {
             event.preventDefault();
             const stageNum = parseInt(event.key);
             goToStage(stageNum);
